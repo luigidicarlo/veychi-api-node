@@ -1,0 +1,28 @@
+{
+  "name": "veychi-api",
+  "version": "1.0.0",
+  "description": "RESTful API for Veychi Ltd.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon index",
+    "migrate": "node api/database/migrations"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.19.0",
+    "express": "^4.17.1",
+    "express-validator": "^6.3.0",
+    "jsonwebtoken": "^8.5.1",
+    "knex": "^0.20.2",
+    "lodash": "^4.17.15",
+    "mysql": "^2.17.1",
+    "socket.io": "^2.3.0",
+    "validator": "^12.1.0"
+  },
+  "devDependencies": {
+    "morgan": "^1.9.1"
+  }
+}
