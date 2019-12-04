@@ -95,6 +95,28 @@ app.put('/users', [
         });
 });
 
+app.put('/change-password', [
+    validateToken,
+    body('password')
+        .not().isEmpty().trim()
+], (req, res) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+        return res.status(400).json(errors.array());
+    }
+
+    const newPass = bcrypt.hashSync(req.body.password, 10);
+
+    conn('users')
+        .where('id', req.user.id)
+        .update({ password: newPass})
+        .then(updated => {
+            const code = update > 0 ? 200 : 400;
+            return res.status(code).json(updated);
+        });
+});
+
 app.delete('/users', validateToken, (req, res) => {
     conn('users')
         .where('id', req.user.id)
