@@ -1,22 +1,18 @@
-const conn = require('../config/database.config');
+const Store = require('../models/Store.model');
 
 const storeExists = (req, res, next) => {
     const id = req.user.id;
 
-    conn('stores')
-        .where('user_id', id)
-        .select('*')
-        .then(rows => {
-            if (rows.length > 0) {
-                const store = rows[0];
-                req.store = store;
-            } else {
-                req.store = null;
-            }
-            next();
-        });
+    Store.findById(id, (err, store) => {
+        if (err) return res.status(500).json(err);
+
+        if (!store) req.store = null;
+
+        req.store = store;
+        next();
+    });
 };
 
 module.exports = {
-    storeExists,
+    storeExists
 };

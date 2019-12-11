@@ -2,10 +2,10 @@
   "name": "veychi-api",
   "version": "1.0.0",
   "description": "RESTful API for Veychi Ltd.",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon index",
+    "dev": "nodemon app",
     "migrate": "node api/database/migrations"
   },
   "author": "",
@@ -18,6 +18,8 @@
     "jsonwebtoken": "^8.5.1",
     "knex": "^0.20.2",
     "lodash": "^4.17.15",
+    "mongoose": "^5.7.14",
+    "mongoose-unique-validator": "^2.0.3",
     "mysql": "^2.17.1",
     "socket.io": "^2.3.0",
     "validator": "^12.1.0"

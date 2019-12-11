@@ -2,55 +2,16 @@ const express = require('express');
 const _ = require('lodash');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const conn = require('../config/database.config');
+const User = require('../models/User.model');
 const {body, validationResult} = require('express-validator');
 
 const app = express();
 
-app.post('/login', (req, res) => {
-    const loginInfo = _.pick(req.body, ['username', 'password']);
-
-    conn('users')
-        .where({ username: loginInfo.username })
-        .orWhere({ email: loginInfo.username })
-        .select('*')
-        .then((users) => {
-            const user = users[0];
-
-            if (!user || user === null) {
-                return res.status(401).json('Invalid access credentials');
-            }
-            
-            if (!bcrypt.compareSync(loginInfo.password, user.password)) {
-                return res.status(401).json('Invalid access credentials');
-            }
-
-            const token = jwt.sign({
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                role: user.role,
-            }, process.env.JWT_SECRET, { expiresIn: '3 days' });
-
-            return res.status(200).json(token);
-        })
-        .catch(() => {
-            return res.status(403).json({
-                message: 'Provide login details'
-            });
-        });
-});
-
-app.post('/password-recovery/token', [
-    body('email')
-        .if(body('email').not().isEmpty())
-        .trim()
-        .isEmail(),
+app.post('/login', [
     body('username')
-        .if(body('username').not().isEmpty())
-        .not()
-        .isEmpty()
-        .trim()
+        .notEmpty(),
+    body('password')
+        .notEmpty()
 ], (req, res) => {
     const errors = validationResult(req);
 
@@ -58,48 +19,82 @@ app.post('/password-recovery/token', [
         return res.status(400).json(errors.array());
     }
 
-    const body = _.pick(req.body, ['email', 'username']);
+    const loginInfo = _.pick(req.body, ['username', 'password']);
 
-    conn('users')
-        .where('email', body.email)
-        .orWhere('username', body.username)
-        .select('*')
-        .then(rows => {
-            if (rows.length <= 0) {
-                return res.status(404).json('User not found.');
+    User.findOne(
+        {$or: [
+            { email: loginInfo.username},
+            { username: loginInfo.username}
+        ]},
+        (err, user) => {
+            if (err) return res.status(401).json('Invalid login details.');
+
+            if (!bcrypt.compareSync(loginInfo.password, user.password)) {
+                return res.status(401).json('Invalid login details.');
             }
 
-            const user = rows[0];
+            const token = jwt.sign({
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                role: user.role,
+            }, process.env.JWT_KEY, { expiresIn: process.env.JWT_EXP });
+
+            return res.json(token);
+        }
+    );
+});
+
+app.post('/password/token', [
+    body('username')
+        .if(body('username').notEmpty())
+        .trim()
+        .isEmail(),
+], (req, res) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+        return res.status(400).json(errors.array());
+    }
+
+    const body = _.pick(req.body, ['username']);
+
+    User.findOne({
+        $or: [
+            {email: body.username},
+            {username: body.username}
+        ]},
+        (err, user) => {
+            if (err) return res.status(404).json('User not found.');
+            if (!user) return res.status(404).json('User not found.');
 
             const token = crypto.randomBytes(16).toString('hex');
 
-            const data = {
-                email: user.email,
-                token
-            };
-
-            return conn('password_recovery')
-                .insert(data)
-        })
-        .then(inserted => {
-            return conn('password_recovery')
-                .where('email', body.email)
-                .select('*');
-        })
-        .then(rows => {
-            return res.status(201).json(rows[0]);
-        })
-        .catch(error => {
-            return res.status(500).json(error);
-        });
+            User.findById(
+                user._id,
+                {
+                    recoverToken: token,
+                    recoverTokenExp: Date.now() + (3600 * 24 * 1000)
+                },
+                { new: true },
+                (err, updated) => {
+                    if (err) return res.status(500).json(err);
+                    return res.json({
+                        token,
+                        user: updated
+                    });
+                }
+            );
+        }
+    );
 });
 
-app.post('/password-recovery/change', [
+app.post('/password/recovery-change', [
     body('password')
-        .not().isEmpty()
+        .notEmpty()
         .trim(),
     body('token')
-        .not().isEmpty()
+        .notEmpty()
         .trim()
 ], (req, res) => {
     const errors = validationResult(req);
@@ -110,29 +105,26 @@ app.post('/password-recovery/change', [
 
     const body = _.pick(req.body, ['password', 'token']);
 
-    conn('password_recovery')
-        .where('token', body.token)
-        .join('users', 'password_recovery.email', 'users.email')
-        .select('id')
-        .then(rows => {
-            if (rows <= 0) {
-                return res.status(404).json('User not found. Password recovery not possible.');
+    User.findOne({ recoverToken: body.token }, (err, user) => {
+        if (err) res.status(500).json(err);
+        if (!user) res.status(404).json('Cannot recover password. Invalid token.');
+        if (Date.now() > user.recoverTokenExp) {
+            return res.status(401).json('Cannot recover password. Invalid token.');
+        }
+        User.findByIdAndUpdate(
+            user._id,
+            {
+                password: bcrypt.hashSync(body.password, bcrypt.genSaltSync()),
+                recoverToken: null,
+                recoverTokenExp: null
+            },
+            { new: true },
+            (err, updated) => {
+                if (err) return res.status(500).json(err);
+                return res.json(updated);
             }
-
-            const user = rows[0];
-            const newPass = bcrypt.hashSync(body.password, 10);
-
-            return conn('users')
-                .where('id', user.id)
-                .update({password: newPass});
-        })
-        .then(updated => {
-            const status = updated > 0 ? 200 : 400;
-            return res.status(status).json(200);
-        })
-        .catch(error => {
-            return res.status(500).json(error);
-        });
+        )
+    });
 });
 
 module.exports = app;
