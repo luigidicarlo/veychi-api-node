@@ -3,6 +3,7 @@ const _ = require('lodash');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const Response = require('../models/Response.model');
 const { model: User } = require('../models/User.model');
 const {body, validationResult} = require('express-validator');
 
@@ -16,7 +17,7 @@ app.post('/login', [
 ], (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(errors.array());
+    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
     const loginInfo = _.pick(req.body, ['username', 'password']);
 
@@ -26,12 +27,12 @@ app.post('/login', [
             { username: loginInfo.username}
         ]},
         (err, user) => {
-            if (err) return res.status(500).json(err);
+            if (err) return res.status(500).json(new Response(false, null, err));
 
-            if (!user) return res.status(404).json('Invalid login details.');
+            if (!user) return res.status(404).json(new Response(false, null, { message: 'Invalid login details.' }));
 
             if (!bcrypt.compareSync(loginInfo.password, user.password)) {
-                return res.status(401).json('Invalid login details.');
+                return res.status(401).json(new Response(false, null, { message: 'Invalid login details.' }));
             }
 
             const token = jwt.sign(
@@ -40,7 +41,7 @@ app.post('/login', [
                 { expiresIn: process.env.JWT_EXP }
             );
 
-            return res.json(token);
+            return res.json(new Response(true, token, null));
         }
     );
 });
@@ -53,7 +54,7 @@ app.post('/password/token', [
 ], (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(errors.array());
+    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
     const body = _.pick(req.body, ['username']);
 
@@ -63,9 +64,9 @@ app.post('/password/token', [
             {username: body.username}
         ]},
         (err, user) => {
-            if (err) return res.status(500).json(err);
+            if (err) return res.status(500).json(new Response(false, null, err));
 
-            if (!user) return res.status(404).json('User not found.');
+            if (!user) return res.status(404).json(new Response(false, null, { message: 'User not found.' }));
 
             const token = crypto.randomBytes(16).toString('hex');
 
@@ -77,12 +78,9 @@ app.post('/password/token', [
                 },
                 { new: true },
                 (err, updated) => {
-                    if (err) return res.status(500).json(err);
+                    if (err) return res.status(500).json(new Response(false, null, err));
 
-                    return res.json({
-                        token,
-                        user: updated
-                    });
+                    return res.json(new Response(true, { token, user: updated }, null));
                 }
             );
         }
@@ -99,16 +97,16 @@ app.post('/password/recovery-change', [
 ], (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(errors.array());
+    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
     const body = _.pick(req.body, ['password', 'token']);
 
     User.findOne({ recoverToken: body.token }, (err, user) => {
-        if (err) res.status(500).json(err);
+        if (err) res.status(500).json(new Response(false, null, err));
 
-        if (!user) res.status(404).json('Cannot recover password. Invalid token.');
+        if (!user) res.status(404).json(new Response(false, null, { message: 'Cannot recover password. Invalid token.' }));
 
-        if (Date.now() > user.recoverTokenExp) return res.status(401).json('Cannot recover password. Invalid token.');
+        if (Date.now() > user.recoverTokenExp) return res.status(401).json(new Response(false, null, { message: 'Cannot recover password. Invalid token.' }));
 
         User.findByIdAndUpdate(
             user._id,
@@ -119,8 +117,9 @@ app.post('/password/recovery-change', [
             },
             { new: true },
             (err, updated) => {
-                if (err) return res.status(500).json(err);
-                return res.json(updated);
+                if (err) return res.status(500).json(new Response(false, null, err));
+
+                return res.json(new Response(true, updated, null));
             }
         )
     });
