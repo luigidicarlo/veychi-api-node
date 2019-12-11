@@ -2,7 +2,8 @@ const express = require('express');
 const _ = require('lodash');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User.model');
+const crypto = require('crypto');
+const { model: User } = require('../models/User.model');
 const {body, validationResult} = require('express-validator');
 
 const app = express();
@@ -28,6 +29,8 @@ app.post('/login', [
         ]},
         (err, user) => {
             if (err) return res.status(401).json('Invalid login details.');
+
+            if (!user) return res.status(404).json('User does not exist.');
 
             if (!bcrypt.compareSync(loginInfo.password, user.password)) {
                 return res.status(401).json('Invalid login details.');
@@ -70,7 +73,7 @@ app.post('/password/token', [
 
             const token = crypto.randomBytes(16).toString('hex');
 
-            User.findById(
+            User.findByIdAndUpdate(
                 user._id,
                 {
                     recoverToken: token,

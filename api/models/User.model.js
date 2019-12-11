@@ -73,7 +73,15 @@ userSchema.plugin(uniqueValidator, {
     message: '{PATH} is expected to be unique.'
 });
 
-module.exports = mongoose.model('User', userSchema);
+userSchema.methods.toJSON = function() {
+    const user = this;
+    const userObject = user.toObject();
+    delete userObject.password;
+    return userObject;
+}
+
 module.exports = {
-    fillable, updatable
+    model: mongoose.model('User', userSchema),
+    fillable,
+    updatable
 };

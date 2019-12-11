@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const uniqueValidator = require('mongoose-unique-validator');
 const regex = require('../utils/regex');
 const Schema = mongoose.Schema;
+const {model: User} = require('./User.model');
 
 const fillable = [
     'name', 'description', 'imageUrl', 

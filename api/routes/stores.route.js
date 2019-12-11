@@ -23,7 +23,7 @@ app.post('/stores', [
         .trim().matches(regex.storeNames),
     body('imageUrl')
         .if(body('imageUrl').notEmpty())
-        .trim().isUrl(),
+        .trim().isURL(),
     body('rut')
         .notEmpty()
         .trim().matches(regex.rut),
@@ -57,7 +57,7 @@ app.put('/stores', [
         .matches(regex.storeNames),
     body('imageUrl')
         .if(body('imageUrl').notEmpty())
-        .isUrl(),
+        .isURL(),
     body('activity')
         .if(body('activity').notEmpty())
         .isAlpha(),
