@@ -12,11 +12,7 @@ require('../config/app.config');
 const app = express();
 
 app.get('/users', validateToken, (req, res) => {
-    User.findById(req.user.id, (err, user) => {
-        if (err) return res.status(400).json(err);
-        
-        return res.json(_.omit(user, ['password']));
-    });
+    return res.json(user);
 });
 
 app.post('/users', [
@@ -74,6 +70,7 @@ app.put('/users', [
 
     User.findByIdAndUpdate(req.user.id, body, {new: true}, (err, updated) => {
         if (err) return res.status(500).json(err);
+
         return res.json(updated);
     });
 });
@@ -102,11 +99,13 @@ app.put('/users/password', [
 });
 
 app.delete('/users', validateToken, (req, res) => {
-    User.findByIdAndDelete(
+    User.findByIdAndUpdate(
         req.user.id,
+        { active: false },
+        {new: true},
         (err, deleted) => {
             if (err) return res.status(500).json(err);
-            
+
             return res.json(deleted);
         }
     );

@@ -26,6 +26,5 @@ app.use(require('./users.route'));
 app.use(require('./stores.route'));
 app.use(require('./products.route'));
 app.use(require('./categories.route'));
-app.use(require('./shopping-carts.route'));
 
 module.exports = app;

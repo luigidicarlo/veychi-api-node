@@ -42,9 +42,21 @@ const storeSchema = new Schema({
         type: String,
         required: true
     },
+    enabled: {
+        type: Boolean,
+        default: false
+    },
     createdAt: {
         type: Date,
         default: new Date(Date.now())
+    },
+    updatedAt: {
+        type: Date,
+        default: new Date(Date.now())
+    },
+    active: {
+        type: Boolean,
+        default: true
     }
 });
 
@@ -52,7 +64,8 @@ storeSchema.plugin(uniqueValidator, {
     message: '{PATH} is expected to be unique.'
 });
 
-module.exports = mongoose.model('Store', storeSchema);
 module.exports = {
-    fillable, updatable
+    model: mongoose.model('Store', storeSchema),
+    fillable,
+    updatable
 };

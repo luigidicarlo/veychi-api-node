@@ -16,9 +16,7 @@ app.post('/login', [
 ], (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) {
-        return res.status(400).json(errors.array());
-    }
+    if (!errors.isEmpty()) return res.status(400).json(errors.array());
 
     const loginInfo = _.pick(req.body, ['username', 'password']);
 
@@ -28,20 +26,19 @@ app.post('/login', [
             { username: loginInfo.username}
         ]},
         (err, user) => {
-            if (err) return res.status(401).json('Invalid login details.');
+            if (err) return res.status(500).json(err);
 
-            if (!user) return res.status(404).json('User does not exist.');
+            if (!user) return res.status(404).json('Invalid login details.');
 
             if (!bcrypt.compareSync(loginInfo.password, user.password)) {
                 return res.status(401).json('Invalid login details.');
             }
 
-            const token = jwt.sign({
-                id: user._id,
-                username: user.username,
-                email: user.email,
-                role: user.role,
-            }, process.env.JWT_KEY, { expiresIn: process.env.JWT_EXP });
+            const token = jwt.sign(
+                { id: user._id },
+                process.env.JWT_KEY,
+                { expiresIn: process.env.JWT_EXP }
+            );
 
             return res.json(token);
         }
@@ -56,9 +53,7 @@ app.post('/password/token', [
 ], (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) {
-        return res.status(400).json(errors.array());
-    }
+    if (!errors.isEmpty()) return res.status(400).json(errors.array());
 
     const body = _.pick(req.body, ['username']);
 
@@ -68,7 +63,8 @@ app.post('/password/token', [
             {username: body.username}
         ]},
         (err, user) => {
-            if (err) return res.status(404).json('User not found.');
+            if (err) return res.status(500).json(err);
+
             if (!user) return res.status(404).json('User not found.');
 
             const token = crypto.randomBytes(16).toString('hex');
@@ -82,6 +78,7 @@ app.post('/password/token', [
                 { new: true },
                 (err, updated) => {
                     if (err) return res.status(500).json(err);
+
                     return res.json({
                         token,
                         user: updated
@@ -102,18 +99,17 @@ app.post('/password/recovery-change', [
 ], (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) {
-        return res.status(400).json(errors.array());
-    }
+    if (!errors.isEmpty()) return res.status(400).json(errors.array());
 
     const body = _.pick(req.body, ['password', 'token']);
 
     User.findOne({ recoverToken: body.token }, (err, user) => {
         if (err) res.status(500).json(err);
+
         if (!user) res.status(404).json('Cannot recover password. Invalid token.');
-        if (Date.now() > user.recoverTokenExp) {
-            return res.status(401).json('Cannot recover password. Invalid token.');
-        }
+
+        if (Date.now() > user.recoverTokenExp) return res.status(401).json('Cannot recover password. Invalid token.');
+
         User.findByIdAndUpdate(
             user._id,
             {

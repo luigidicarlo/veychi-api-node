@@ -1,10 +1,9 @@
 const express = require('express');
 const _ = require('lodash');
-const Store = require('../models/Store.model');
 const { body, validationResult } = require('express-validator');
 const { validateToken } = require('../middlewares/jwt-auth.middleware');
 const { storeExists } = require('../middlewares/stores.middleware');
-const { fillable, updatable } = require('../models/Store.model');
+const { model: Store, fillable, updatable } = require('../models/Store.model');
 const regex = require('../utils/regex');
 
 const app = express();

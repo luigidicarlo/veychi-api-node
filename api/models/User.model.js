@@ -46,6 +46,10 @@ const userSchema = new Schema({
         type: String,
         default: null
     },
+    recoverTokenExp: {
+        type: Date,
+        default: null
+    },
     role: {
         type: String,
         enum: roles,
@@ -63,9 +67,9 @@ const userSchema = new Schema({
         type: Date,
         default: null
     },
-    recoverTokenExp: {
-        type: Date,
-        default: null
+    active: {
+        type: Boolean,
+        default: true
     }
 });
 
