@@ -1,14 +1,28 @@
 const mongoose = require('mongoose');
 const uniqueValidator = require('mongoose-unique-validator');
+const constants = require('../utils/constants');
+const regex = require('../utils/regex');
 
 const Schema = mongoose.Schema;
+
+const fillable = [
+    'name', 'expiration', 'value',
+    'percentage'
+];
+
+const updatable = [
+    'name', 'expiration', 'value',
+    'percentage'
+];
 
 const couponSchema = new Schema({
     name: {
         type: String,
         required: true,
         unique: true,
-        minlength: 4
+        minlength: constants.namesMinLength,
+        maxlength: constants.namesMaxLength,
+        match: regex.couponNames
     },
     expiration: {
         type: Date,
@@ -17,8 +31,8 @@ const couponSchema = new Schema({
     value: {
         type: Number,
         required: true,
-        min: 0.01,
-        max: 999999999999.99
+        min: constants.minDiscount,
+        max: constants.maxPrice
     },
     percentage: {
         type: Boolean,
@@ -31,6 +45,14 @@ const couponSchema = new Schema({
     createdAt: {
         type: Date,
         default: new Date(Date.now())
+    },
+    updatedAt: {
+        type: Date,
+        default: null
+    },
+    active: {
+        type: Boolean,
+        default: true
     }
 });
 
@@ -38,4 +60,8 @@ couponSchema.plugin(uniqueValidator, {
     message: '{PATH} is expected to be unique.'
 });
 
-module.exports = mongoose.model('Coupon', couponSchema);
+module.exports = {
+    model: mongoose.model('Coupon', couponSchema),
+    fillable,
+    updatable
+};
