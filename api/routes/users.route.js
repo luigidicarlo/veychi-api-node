@@ -79,7 +79,7 @@ app.put('/users', [
         (err, updated) => {
             if (err) return res.status(500).json(new Response(false, null, err));
 
-            if (!updated) return res.status(400).json(new Response(false, null, { message: 'User not found or account disabled.' }));
+            if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'User not found or account disabled.' }));
 
             return res.json(new Response(true, updated, null));
         }
@@ -104,7 +104,7 @@ app.put('/users/password', [
         (err, updated) => {
             if (err) return res.status(500).json(new Response(false, null, err));
 
-            if (!updated) return res.status(400).json(new Response(false, null, { message: 'User not found or account disabled.' }));
+            if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'User not found or account disabled.' }));
             
             return res.json(new Response(true, updated, null));
         }
@@ -119,7 +119,7 @@ app.delete('/users', validateToken, (req, res) => {
         (err, deleted) => {
             if (err) return res.status(500).json(new Response(false, null, err));
 
-            if (!deleted) return res.status(400).json(new Response(false, null, { message: 'User not found or already disabled.' }));
+            if (deleted.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'User not found or already disabled.' }));
 
             return res.json(new Response(true, deleted, null));
         }

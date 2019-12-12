@@ -62,8 +62,6 @@ app.post('/products', [
     check('tags')
         .if(check('tags').notEmpty())
         .isArray(),
-    check('store')
-        .trim().notEmpty().isMongoId(),
     check('category')
         .trim().notEmpty().isMongoId()
 ], (req, res) => {
@@ -76,7 +74,7 @@ app.post('/products', [
     if (!req.store.enabled) return res.status(401).json(new Response(false, null, { message: 'Store is not authorized to manage products.' }));
 
     const body = _.pick(req.body, fillable);
-    body.createdAt = new Date(Date.now());
+    body.store = req.store._id;
 
     const newProduct = new Product(body);
 
@@ -113,9 +111,6 @@ app.put('/products/:id', [
     check('tags')
         .if(check('tags').notEmpty())
         .isArray(),
-    check('store')
-        .if(check('store').notEmpty())
-        .trim().isMongoId(),
     check('category')
         .if(check('category').notEmpty())
         .trim().isMongoId()
@@ -133,11 +128,10 @@ app.put('/products/:id', [
     Product.updateOne(
         { _id: req.params.id, store: req.store._id, active: true },
         body,
-        { new: true, runValidators: true },
         (err, updated) => {
             if (err) return res.status(500).json(new Response(false, null, err));
 
-            if (!updated) return res.status(400).json(new Response(false, null, { message: 'Product not found or impossible to update.' }));
+            if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'Product not found or impossible to update.' }));
 
             return res.json(new Response(true, updated, null));
         }
@@ -157,11 +151,10 @@ app.delete('/products/:id', [
     Product.updateOne(
         { _id: req.params.id, store: req.store._id, active: true },
         { active: false },
-        { new: true },
         (err, deleted) => {
             if (err) return res.status(500).json(new Response(false, null, err));
 
-            if (!deleted) return res.status(400).json(new Response(false, null, { message: 'Product does not exist or impossible to disable it.' }));
+            if (deleted.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'Product does not exist or impossible to disable it.' }));
 
             return res.json(new Response(true, deleted, null));
         }

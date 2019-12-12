@@ -44,7 +44,7 @@ app.post('/categories', [
         .trim().isMongoId(),
     check('imageUrl')
         .if(check('imageUrl').notEmpty())
-        .isURL()
+        .trim().isURL()
 ], (req, res) => {
     const errors = validationResult(req);
 
@@ -65,14 +65,14 @@ app.put('/categories/:id', [
     validateToken,
     isAdmin,
     check('name')
-        .if(check('name').not().isEmpty())
-        .trim(),
-        check('parent_id')
-        .if(check('parent_id').not().isEmpty())
-        .isInt({ min: 1 }),
-    check('image_id')
-        .if(check('image_id').not().isEmpty())
-        .isInt({ min: 1 })
+        .if(check('name').notEmpty())
+        .trim().isLength({ min: constants.namesMinLength, max: constants.namesMaxLength }),
+    check('parent')
+        .if(check('parent').notEmpty())
+        .trim().isMongoId(),
+    check('imageUrl')
+        .if(check('imageUrl').notEmpty())
+        .trim().isURL()
 ], (req, res) => {
     const errors = validationResult(req);
 
@@ -81,36 +81,30 @@ app.put('/categories/:id', [
     const body = _.pick(req.body, updatable);
     body.updatedAt = new Date(Date.now());
 
-    Category.findOne(
+    Category.updateOne(
         { _id: req.params.id, active: true },
-        (err, category) => {
+        body,
+        (err, updated) => {
             if (err) return res.status(500).json(new Response(false, null, err));
 
-            if (!category) return res.status(404).json(new Response(false, null, { message: 'Category does not exist.' }));
+            if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'Category not found or impossible to update.' }));
 
-            if (!category.active) return res.status(401).json(new Response(false, null, { message: 'Category is inactive.' }));
-
-            Category.findByIdAndUpdate(
-                req.params.id,
-                body,
-                { new: true, runValidators: true },
-                (err, updated) => {
-                    if (err) return res.status(500).json(new Response(false, null, err));
-        
-                    return res.json(new Response(true, updated, null));
-                }
-            );
+            return res.json(new Response(true, updated, null));
         }
     );
 });
 
-app.delete('/categories/:id', (req, res) => {
-    Category.findByIdAndUpdate(
-        req.params.id,
+app.delete('/categories/:id', [
+    check('id')
+        .notEmpty().trim().isMongoId()
+], (req, res) => {
+    Category.updateOne(
+        { _id: req.params.id, active: true },
         { active: false },
-        { new: true },
         (err, deleted) => {
             if (err) return res.status(500).json(new Response(false, null, err));
+
+            if (deleted.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'Category not found or impossible to disable.' }));
 
             return res.json(new Response(true, deleted, null));
         }
