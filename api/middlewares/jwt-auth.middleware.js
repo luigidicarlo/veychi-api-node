@@ -16,7 +16,7 @@ const validateToken = (req, res, next) => {
 
             if (!user.active) return res.status(401).json(new Response(false, null, { message: 'User account is inactive.' }));
 
-            req.user = decoded;
+            req.user = user;
             next();
         });
     });

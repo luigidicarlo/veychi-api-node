@@ -1,133 +1,120 @@
 const express = require('express');
 const conn = require('../config/database.config');
 const _ = require('lodash');
-const { body, validationResult } = require('express-validator');
+const Response = require('../models/Response.model');
+const { model: Category, fillable, updatable } = require('../models/Category.model');
+const { model: Product } = require('../models/Product.model');
+const { check, validationResult } = require('express-validator');
 const { validateToken } = require('../middlewares/jwt-auth.middleware');
 const { isAdmin } = require('../middlewares/auth.middleware');
+const constants = require('../utils/constants');
 
 const app = express();
 
 app.get('/categories', (req, res) => {
-    conn('categories')
-        .select('*')
-        .then(rows => {
-            if (rows.length <= 0) {
-                return res.status(404).json('No categories were found.');
-            }
+    Category.find({ active: true }, (err, categories) => {
+        if (err) return res.status(500).json(new Response(false, null, err));
 
-            return res.json(rows);
-        })
-        .catch(error => {
-            return res.status(500).json(error);
-        });
+        if (!categories) return res.status(404).json(new Response(true, [], null));
+
+        return res.json(new Response(true, categories, null));
+    });
 });
 
-app.get('/categories/:id', (req, res) => {
-    const categoryId = req.params.id;
+app.get('/categories/:id', [
+    check('id')
+        .trim().notEmpty().isMongoId()
+], (req, res) => {
+    Product.findMany({ category: req.params.id, active: true }, (err, products) => {
+        if (err) return res.status(500).json(new Response(false, null, err));
 
-    conn('products')
-        .where('category_id', categoryId)
-        .select('*')
-        .then(rows => {
-            if (rows.length <= 0) {
-                return res.status(404).json('No products were found.');
-            }
+        if (!products) return res.status(404).json(new Response(true, [], null));
 
-            return res.json(rows);
-        })
-        .catch(error => {
-            return res.status(500).json(error);
-        });
+        return res.json(new Response(true, products, null));
+    });
 });
 
 app.post('/categories', [
     validateToken,
     isAdmin,
-    body('name')
-        .not()
-        .isEmpty()
-        .trim(),
-    body('parent_id')
-        .if(body('parent_id').not().isEmpty())
-        .isInt({ min: 1 }),
-    body('image_id')
-        .if(body('image_id').not().isEmpty())
-        .isInt({ min: 1 })
+    check('name')
+        .notEmpty().trim().isLength({ min: constants.namesMinLength, max: constants.namesMaxLength }),
+    check('parent')
+        .if(check('parent').notEmpty())
+        .trim().isMongoId(),
+    check('imageUrl')
+        .if(check('imageUrl').notEmpty())
+        .isURL()
 ], (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) {
-        return res.status(422).json(errors.array());
-    }
+    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-    const body = _.pick(req.body, ['name', 'parent_id', 'image_id']);
-    body.created_at = new Date(Date.now());
-    body.updated_at = new Date(Date.now());
+    const body = _.pick(req.body, fillable);
 
-    conn('categories')
-        .insert(body)
-        .then(inserted => {
-            return conn('categories')
-                .where('id', inserted)
-                .select('*');
-        })
-        .then(rows => {
-            return res.status(201).json(rows[0]);
-        })
-        .catch(error => {
-            return res.status(500).json(error);
-        });
+    const newCategory = new Category(body);
+    
+    newCategory.save((err, inserted) => {
+        if (err) return res.status(500).json(new Response(false, null, err));
+
+        return res.status(201).json(new Response(true, inserted, null));
+    });
 });
 
 app.put('/categories/:id', [
     validateToken,
     isAdmin,
-    body('name')
-        .if(body('name').not().isEmpty())
+    check('name')
+        .if(check('name').not().isEmpty())
         .trim(),
-        body('parent_id')
-        .if(body('parent_id').not().isEmpty())
+        check('parent_id')
+        .if(check('parent_id').not().isEmpty())
         .isInt({ min: 1 }),
-    body('image_id')
-        .if(body('image_id').not().isEmpty())
+    check('image_id')
+        .if(check('image_id').not().isEmpty())
         .isInt({ min: 1 })
 ], (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) {
-        return res.status(422).json(errors.array())
-    }
+    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-    const categoryId = req.params.id;
-    const body = _.pick(req.body, ['name', 'parent_id', 'image_id']);
-    body.updated_at = new Date(Date.now());
+    const body = _.pick(req.body, updatable);
+    body.updatedAt = new Date(Date.now());
 
-    conn('categories')
-        .where('id', categoryId)
-        .update(body)
-        .then(updated => {
-            const status = updated > 0 ? 200 : 422;
-            const response = updated > 0 ? body : updated;
-            return res.status(status).json(response);
-        })
-        .catch(error => {
-            return res.status(500).json(error);
-        });
+    Category.findOne(
+        { _id: req.params.id, active: true },
+        (err, category) => {
+            if (err) return res.status(500).json(new Response(false, null, err));
+
+            if (!category) return res.status(404).json(new Response(false, null, { message: 'Category does not exist.' }));
+
+            if (!category.active) return res.status(401).json(new Response(false, null, { message: 'Category is inactive.' }));
+
+            Category.findByIdAndUpdate(
+                req.params.id,
+                body,
+                { new: true, runValidators: true },
+                (err, updated) => {
+                    if (err) return res.status(500).json(new Response(false, null, err));
+        
+                    return res.json(new Response(true, updated, null));
+                }
+            );
+        }
+    );
 });
 
 app.delete('/categories/:id', (req, res) => {
-    const categoryId = req.params.id;
+    Category.findByIdAndUpdate(
+        req.params.id,
+        { active: false },
+        { new: true },
+        (err, deleted) => {
+            if (err) return res.status(500).json(new Response(false, null, err));
 
-    conn('categories')
-        .where('id', categoryId)
-        .delete()
-        .then(deleted => {
-            const status = deleted > 0 ? 200 : 422;
-            return res.status(status).json(deleted);
-        })
-        .catch(error => {
-            return res.status(500).json(error);
-        });
+            return res.json(new Response(true, deleted, null));
+        }
+    );
 });
 
 module.exports = app;

@@ -1,8 +1,20 @@
 const mongoose = require('mongoose');
 const uniqueValidator = require('mongoose-unique-validator');
-const regex = require('../utils/regex');
+const constants = require('../utils/constants');
 
 const Schema = mongoose.Schema;
+
+const fillable = [
+    'name', 'description', 'shortDescription',
+    'price', 'discount', 'images', 
+    'tags', 'store', 'category'
+];
+
+const updatable = [
+    'name', 'description', 'shortDescription',
+    'price', 'discount', 'images',
+    'tags', 'category'
+];
 
 const productSchema = new Schema({
     name: {
@@ -13,23 +25,27 @@ const productSchema = new Schema({
     },
     description: {
         type: String,
-        default: null
+        default: null,
+        minlength: constants.descMinLength,
+        maxlength: constants.descMaxLength
     },
     shortDescription: {
         type: String,
-        default: null
+        default: null,
+        minlength: constants.shortDescMinLength,
+        maxlength: constants.shortDescMaxLength
     },
     price: {
         type: Number,
         required: true,
-        min: 0.01,
-        max: 999999999999.99
+        min: constants.minPrice,
+        max: constants.maxPrice
     },
     discount: {
         type: Number,
         default: 0,
-        min: 0,
-        max: 100
+        min: constants.minDiscount,
+        max: constants.maxDiscount
     },
     images: {
         type: [String],
@@ -46,6 +62,18 @@ const productSchema = new Schema({
     category: {
         type: Schema.Types.ObjectId,
         ref: 'Category'
+    },
+    createdAt: {
+        type: Date,
+        default: new Date(Date.now())
+    },
+    updatedAt: {
+        type: Date,
+        default: null
+    },
+    active: {
+        type: Boolean,
+        default: true
     }
 });
 
@@ -53,4 +81,8 @@ productSchema.plugin(uniqueValidator, {
     message: '{PATH} is expected to be unique.'
 })
 
-module.exports = mongoose.model('Product', productSchema);
+module.exports = {
+    model: mongoose.model('Product', productSchema),
+    fillable,
+    updatable
+};

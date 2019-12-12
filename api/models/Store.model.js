@@ -2,15 +2,15 @@ const mongoose = require('mongoose');
 const uniqueValidator = require('mongoose-unique-validator');
 const regex = require('../utils/regex');
 const Schema = mongoose.Schema;
-const {model: User} = require('./User.model');
+const constants = require('../utils/constants');
 
 const fillable = [
     'name', 'description', 'imageUrl', 
     'rut', 'activity'
 ];
 const updatable = [
-    'description', 'imageUrl', 'rut',
-    'activity'
+    'name', 'description', 'imageUrl',
+    'activity', 'rut'
 ];
 
 const storeSchema = new Schema({
@@ -18,11 +18,14 @@ const storeSchema = new Schema({
         type: String,
         required: true,
         unique: true,
-        minlength: 3
+        minlength: constants.namesMinLength,
+        maxlength: constants.namesMaxLength
     },
     description: {
         type: String,
-        default: null
+        default: null,
+        minlength: constants.descMinLength,
+        maxlength: constants.descMaxLength
     },
     user: {
         type: Schema.Types.ObjectId,
@@ -40,7 +43,9 @@ const storeSchema = new Schema({
     },
     activity: {
         type: String,
-        required: true
+        required: true,
+        minlength: constants.namesMinLength,
+        maxlength: constants.namesMaxLength
     },
     enabled: {
         type: Boolean,
@@ -52,7 +57,7 @@ const storeSchema = new Schema({
     },
     updatedAt: {
         type: Date,
-        default: new Date(Date.now())
+        default: null
     },
     active: {
         type: Boolean,

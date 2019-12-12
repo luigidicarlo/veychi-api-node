@@ -22,10 +22,12 @@ app.post('/login', [
     const loginInfo = _.pick(req.body, ['username', 'password']);
 
     User.findOne(
-        {$or: [
-            { email: loginInfo.username},
-            { username: loginInfo.username}
-        ]},
+        {
+            $or: [
+                { email: loginInfo.username},
+                { username: loginInfo.username}
+            ]
+        },
         (err, user) => {
             if (err) return res.status(500).json(new Response(false, null, err));
 
@@ -49,8 +51,7 @@ app.post('/login', [
 app.post('/password/token', [
     body('username')
         .if(body('username').notEmpty())
-        .trim()
-        .isEmail(),
+        .trim(),
 ], (req, res) => {
     const errors = validationResult(req);
 
@@ -76,7 +77,7 @@ app.post('/password/token', [
                     recoverToken: token,
                     recoverTokenExp: Date.now() + (3600 * 24 * 1000)
                 },
-                { new: true },
+                { new: true, runValidators: true },
                 (err, updated) => {
                     if (err) return res.status(500).json(new Response(false, null, err));
 
@@ -115,7 +116,7 @@ app.post('/password/recovery-change', [
                 recoverToken: null,
                 recoverTokenExp: null
             },
-            { new: true },
+            { new: true, runValidators: true },
             (err, updated) => {
                 if (err) return res.status(500).json(new Response(false, null, err));
 

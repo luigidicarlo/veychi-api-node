@@ -1,161 +1,171 @@
 const express = require('express');
 const conn = require('../config/database.config');
 const _ = require('lodash');
+const Response = require('../models/Response.model');
+const { model: Product, fillable, updatable } = require('../models/Product.model');
 const { validateToken } = require('../middlewares/jwt-auth.middleware');
 const { storeExists } = require('../middlewares/stores.middleware');
-const { body, validationResult } = require('express-validator');
+const { check, validationResult } = require('express-validator');
+const regex = require('../utils/regex');
+const constants = require('../utils/constants');
 
 const app = express();
 
 app.get('/products', (req, res) => {
-    conn('products')
-        .select('*')
-        .then(rows => {
-            if (rows.length > 0) {
-                return res.json(rows);
-            } else {
-                return res.status(404).json('No products found.')
-            }
-        })
+    Product.find({ active: true }, (err, products) => {
+        if (err) return res.status(500).json(new Response(false, null, err));
+
+        if (!products) return res.status(404).json(new Response(true, [], null));
+
+        return res.json(new Response(true, products, null));
+    });
 });
 
-app.get('/products/:id', (req, res) => {
-    conn('products')
-        .where('id', req.params.id)
-        .select('*')
-        .then(rows => {
-            if (rows.length > 0) {
-                return res.json(rows[0]);
-            } else {
-                return res.status(404).json('No products found.')
-            }
-        });
+app.get('/products/:id',
+    check('id')
+        .trim().notEmpty().isMongoId()
+, (req, res) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+
+    Product.findOne({ _id: req.params.id, active: true }, (err, product) => {
+        if (err) return res.status(500).json(new Response(false, null, err));
+
+        if (!product) return res.status(404).json(new Response(true, [], null));
+
+        return res.json(new Response(true, product, null));
+    });
 });
 
 app.post('/products', [
     validateToken,
     storeExists,
-    body('name')
-        .not()
-        .isEmpty()
-        .matches('^[a-zA-Z0-9ñÑáéíóúÁÉÍÓÚ\' -]+$'),
-    body('price')
-        .not()
-        .isEmpty()
-        .isFloat({ min: 0 }),
-    body('discount')
-        .if(body('discount').exists())
-        .isFloat({ min: 0, max: 100 }),
-    body('category_id')
-        .if(body('category_id').exists())
-        .isInt({ min: 1 })
+    check('name')
+        .notEmpty()
+        .trim().matches(regex.productNames),
+    check('description')
+        .if(check('description').notEmpty())
+        .trim().isLength({ min: constants.descMinLength, max: constants.descMaxLength }),
+    check('shortDescription')
+        .if(check('shortDescription').notEmpty())
+        .trim().isLength({ min: constants.shortDescMinLength, max: constants.shortDescMaxLength }),
+    check('price')
+        .notEmpty()
+        .trim().isFloat({ min: constants.minPrice, max: constants.maxPrice }),
+    check('discount')
+        .if(check('discount').exists())
+        .trim().isFloat({ min: constants.minDiscount, max: constants.maxDiscount }),
+    check('images')
+        .if(check('images').notEmpty())
+        .isArray(),
+    check('tags')
+        .if(check('tags').notEmpty())
+        .isArray(),
+    check('store')
+        .trim().notEmpty().isMongoId(),
+    check('category')
+        .trim().notEmpty().isMongoId()
 ], (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) {
-        return res.status(422).json(errors.array());
-    }
+    if (!req.store) return res.status(401).json(new Response(false, null, { message: 'User does not possess a store.' }))
+    
+    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-    const body = _.pick(req.body, ['name', 'description', 'short_description', 'price', 'discount', 'category_id']);
-    body.created_at = new Date(Date.now());
-    body.updated_at = new Date(Date.now());
+    if (!req.store.enabled) return res.status(401).json(new Response(false, null, { message: 'Store is not authorized to manage products.' }));
 
-    conn('stores')
-        .where('user_id', req.user.id)
-        .select('*')
-        .then(rows => {
-            if (rows.length <= 0) {
-                return res.status(401).json('Unauthorized');
-            }
+    const body = _.pick(req.body, fillable);
+    body.createdAt = new Date(Date.now());
 
-            const storeId = rows[0].id;
-            body.store_id = storeId;
+    const newProduct = new Product(body);
 
-            return conn('products').insert(body);
-        })
-        .then(inserted => {
-            return conn('products').where('id', inserted).select('*');
-        })
-        .then(rows => {
-            return res.status(201).json(rows[0]);
-        })
-        .catch(error => {
-            return res.status(500).json(error);
-        });
+    newProduct.save((err, product) => {
+        if (err) return res.status(500).json(new Response(false, null, err));
+
+        return res.status(201).json(new Response(true, product, null));
+    });
 });
 
 app.put('/products/:id', [
     validateToken,
     storeExists,
-    body('name')
-        .if(body('name').not().isEmpty())
-        .matches('^[a-zA-Z0-9ñÑáéíóúÁÉÍÓÚ\' -]+$'),
-    body('price')
-        .if(body('price').not().isEmpty())
-        .isFloat({ min: 0 }),
-    body('discount')
-        .if(body('discount').not().isEmpty())
-        .isFloat({ min: 0, max: 100 }),
-    body('category_id')
-        .if(body('category_id').not().isEmpty())
-        .isInt({ min: 1 })
+    check('id')
+        .trim().notEmpty().isMongoId(),
+    check('name')
+        .if(check('name').notEmpty())
+        .trim().matches(regex.productNames),
+    check('description')
+        .if(check('description').notEmpty())
+        .trim().isLength({ min: constants.descMinLength, max: constants.descMaxLength }),
+    check('shortDescription')
+        .if(check('shortDescription').notEmpty())
+        .trim().isLength({ min: constants.shortDescMinLength, max: constants.shortDescMaxLength }),
+    check('price')
+        .if(check('price').notEmpty())
+        .trim().isFloat({ min: constants.minPrice, max: constants.maxPrice }),
+    check('discount')
+        .if(check('discount').exists())
+        .trim().isFloat({ min: constants.minDiscount, max: constants.maxDiscount }),
+    check('images')
+        .if(check('images').notEmpty())
+        .isArray(),
+    check('tags')
+        .if(check('tags').notEmpty())
+        .isArray(),
+    check('store')
+        .if(check('store').notEmpty())
+        .trim().isMongoId(),
+    check('category')
+        .if(check('category').notEmpty())
+        .trim().isMongoId()
 ], (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) {
-        return res.status(422).json(errors.array());
-    }
+    if (!req.store) return res.status(401).json(new Response(false, null, { message: 'User does not possess a store.' }));
+    
+    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-    conn('products')
-        .where('store_id', req.store.id)
-        .select('*')
-        .then(rows => {
-            if (rows.length <= 0) {
-                return res.status(404).json('Product not found.')
-            }
+    if (!req.store.enabled) return res.status(401).json(new Response(false, null, { message: 'Store is not authorized to manage products.' }));
 
-            const body = _.pick(req.body, ['name', 'description', 'short_description', 'price', 'discount', 'category_id']);
-            body.updated_at = new Date(Date.now());
-            
-            return conn('products')
-                .where('id', req.params.id)
-                .update(body);
-        })
-        .then(updated => {
-            return conn('products')
-                .where('id', req.params.id)
-                .select('*');
-        })
-        .then(rows => {
-            return res.json(rows[0]);
-        })
-        .catch(error => {
-            return res.status(500).json(error);
-        });
+    const body = _.pick(req.body, updatable);
+
+    Product.updateOne(
+        { _id: req.params.id, store: req.store._id, active: true },
+        body,
+        { new: true, runValidators: true },
+        (err, updated) => {
+            if (err) return res.status(500).json(new Response(false, null, err));
+
+            if (!updated) return res.status(400).json(new Response(false, null, { message: 'Product not found or impossible to update.' }));
+
+            return res.json(new Response(true, updated, null));
+        }
+    );
 });
 
 app.delete('/products/:id', [
     validateToken,
-    storeExists
+    storeExists,
+    check('id')
+        .trim().notEmpty().isMongoId()
 ], (req, res) => {
-    conn('products')
-        .where('store_id', req.store.id)
-        .select('*')
-        .then(rows => {
-            if (rows.length <= 0) {
-                return res.status(404).json('Product not found.');
-            }
+    if (!req.store) return res.status(401).json(new Response(false, null, { message: 'User does not possess a store.' }));
 
-            return conn('products')
-                .where('id', req.params.id)
-                .delete();
-        })
-        .then(deleted => {
-            return res.json(deleted);
-        })
-        .catch(error => {
-            return res.status(500).json(error);
-        });
+    if (!req.store.enabled) return res.status(401).json(new Response(false, null, { message: 'Store is not authorized to manage products.' }));
+
+    Product.updateOne(
+        { _id: req.params.id, store: req.store._id, active: true },
+        { active: false },
+        { new: true },
+        (err, deleted) => {
+            if (err) return res.status(500).json(new Response(false, null, err));
+
+            if (!deleted) return res.status(400).json(new Response(false, null, { message: 'Product does not exist or impossible to disable it.' }));
+
+            return res.json(new Response(true, deleted, null));
+        }
+    );
 });
 
 module.exports = app;
