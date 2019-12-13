@@ -61,6 +61,7 @@ couponSchema.plugin(uniqueValidator, {
 });
 
 module.exports = {
+    schema: couponSchema,
     model: mongoose.model('Coupon', couponSchema),
     fillable,
     updatable

@@ -28,6 +28,7 @@ app.use(require('./products.route'));
 app.use(require('./categories.route'));
 app.use(require('./tags.route'));
 app.use(require('./coupons.route'));
+app.use(require('./orders.route'));
 app.use(require('./admin/stores.route'));
 
 module.exports = app;

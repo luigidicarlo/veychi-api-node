@@ -82,6 +82,7 @@ productSchema.plugin(uniqueValidator, {
 })
 
 module.exports = {
+    schema: productSchema,
     model: mongoose.model('Product', productSchema),
     fillable,
     updatable

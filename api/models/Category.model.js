@@ -42,6 +42,7 @@ categorySchema.plugin(uniqueValidator, {
 });
 
 module.exports = {
+    schema: categorySchema,
     model: mongoose.model('Category', categorySchema),
     fillable,
     updatable

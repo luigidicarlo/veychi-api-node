@@ -51,7 +51,7 @@ app.post('/login', [
 app.post('/password/token', [
     body('username')
         .if(body('username').notEmpty())
-        .trim(),
+        .trim()
 ], (req, res) => {
     const errors = validationResult(req);
 

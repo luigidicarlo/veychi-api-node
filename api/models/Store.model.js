@@ -70,6 +70,7 @@ storeSchema.plugin(uniqueValidator, {
 });
 
 module.exports = {
+    schema: storeSchema,
     model: mongoose.model('Store', storeSchema),
     fillable,
     updatable

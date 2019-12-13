@@ -85,6 +85,7 @@ userSchema.methods.toJSON = function() {
 }
 
 module.exports = {
+    schema: userSchema,
     model: mongoose.model('User', userSchema),
     fillable,
     updatable
