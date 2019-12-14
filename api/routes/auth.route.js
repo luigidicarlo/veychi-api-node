@@ -26,15 +26,16 @@ app.post('/login', [
             $or: [
                 { email: loginInfo.username},
                 { username: loginInfo.username}
-            ]
+            ],
+            active: true
         },
         (err, user) => {
-            if (err) return res.status(500).json(new Response(false, null, err));
+            if (err) return res.status(400).json(new Response(false, null, err));
 
-            if (!user) return res.status(404).json(new Response(false, null, { message: 'Invalid login details.' }));
+            if (!user) return res.status(404).json(new Response(false, null, { message: 'Invalid login details or account is disabled.' }));
 
             if (!bcrypt.compareSync(loginInfo.password, user.password)) {
-                return res.status(401).json(new Response(false, null, { message: 'Invalid login details.' }));
+                return res.status(401).json(new Response(false, null, { message: 'Invalid login details or account is disabled.' }));
             }
 
             const token = jwt.sign(

@@ -9,12 +9,12 @@ const validateToken = (req, res, next) => {
     jwt.verify(token, process.env.JWT_KEY, (err, decoded) => {
         if (err) return res.status(401).json(new Response(false, null, err))
 
-        User.findById(decoded.id, (err, user) => {
-            if (err) return res.status(500).json(new Response(false, null, err));
+        User.findOne({ _id: decoded.id, active: true }, (err, user) => {
+            if (err) return res.status(400).json(new Response(false, null, err));
 
-            if (!user) return res.status(404).json(new Response(false, null, { message: 'User does not exist.' }));
+            if (!user) return res.status(404).json(new Response(false, null, { message: 'User does not exist or account is disabled.' }));
 
-            if (!user.active) return res.status(401).json(new Response(false, null, { message: 'User account is inactive.' }));
+            console.log(user);
 
             req.user = user;
             next();

@@ -28,9 +28,12 @@ app.post('/users', [
     check('lname')
         .notEmpty().trim().matches(regex.names),
     check('password')
-        .notEmpty().trim().isLength({ min: 8 }),
+        .notEmpty().trim().isLength({ min: 8, max: 32 }),
     check('email')
-        .notEmpty().trim().isEmail()
+        .notEmpty().trim().isEmail(),
+    check('imageUrl')
+        .if(check('imageUrl').notEmpty())
+        .trim().isURL()
 ], (req, res) => {
     const errors = validationResult(req);
 
@@ -68,7 +71,10 @@ app.put('/users', [
         .trim().matches(regex.names),
     check('email')
         .if(check('email').notEmpty())
-        .trim().isEmail()
+        .trim().isEmail(),
+    check('imageUrl')
+        .if(check('imageUrl').notEmpty())
+        .trim().isURL()
 ], (req, res) => {
     const errors = validationResult(req);
 
@@ -87,11 +93,15 @@ app.put('/users', [
             body,
             {new: true, runValidators: true},
             (err, updated) => {
-                if (err) return res.status(500).json(new Response(false, null, err));
+                if (err) return res.status(400).json(new Response(false, null, err));
     
                 if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'User not found or account disabled.' }));
-    
-                return res.json(new Response(true, updated, null));
+
+                User.findOne({ _id: req.user.id, active: true }, (err, user) => {
+                    if (err) return res.status(400).json(new Response(false, null, err));
+
+                    return res.json(new Response(true, user, null));
+                });
             }
         );
     });
@@ -111,13 +121,17 @@ app.put('/users/password', [
     User.updateOne(
         { _id: req.user.id, active: true },
         { password: newPass },
-        { new: true },
+        { runValidators: true },
         (err, updated) => {
-            if (err) return res.status(500).json(new Response(false, null, err));
+            if (err) return res.status(400).json(new Response(false, null, err));
 
             if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'User not found or account disabled.' }));
-            
-            return res.json(new Response(true, updated, null));
+
+            User.findOne({ _id: req.user.id, active: true }, (err, user) => {
+                if (err) return res.status(400).json(new Response(false, null, err));
+
+                return res.json(new Response(true, user, null));
+            });
         }
     );
 });
@@ -128,11 +142,15 @@ app.delete('/users', validateToken, (req, res) => {
         { active: false },
         {new: true},
         (err, deleted) => {
-            if (err) return res.status(500).json(new Response(false, null, err));
+            if (err) return res.status(400).json(new Response(false, null, err));
 
             if (deleted.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'User not found or already disabled.' }));
 
-            return res.json(new Response(true, deleted, null));
+            User.findOne({ _id: req.user.id, active: false }, (err, user) => {
+                if (err) return res.status(400).json(new Response(false, null, err));
+
+                return res.json(new Response(true, user, null));
+            });
         }
     );
 });
