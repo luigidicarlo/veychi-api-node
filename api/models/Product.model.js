@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const uniqueValidator = require('mongoose-unique-validator');
 const constants = require('../utils/constants');
 
 const Schema = mongoose.Schema;
@@ -20,7 +19,6 @@ const productSchema = new Schema({
     name: {
         type: String,
         required: true,
-        unique: true,
         minlength: 3
     },
     description: {
@@ -76,10 +74,6 @@ const productSchema = new Schema({
         default: true
     }
 });
-
-productSchema.plugin(uniqueValidator, {
-    message: '{PATH} is expected to be unique.'
-})
 
 module.exports = {
     schema: productSchema,

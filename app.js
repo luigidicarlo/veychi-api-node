@@ -12,17 +12,16 @@ require('./api/config/app.config');
 const app = express();
 
 // Sets the connection with the database
-const connectionString = process.env.NODE_ENV === 'dev' ?
-    `mongodb://${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}` :
-    `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
+const connectionString = `mongodb://${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
+const options = {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    useCreateIndex: true
+};
 
 mongoose.connect(
     connectionString,
-    {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-        useCreateIndex: true
-    },
+    options,
     (err) => {
         if (err) throw err;
         console.log(`Database online on port ${process.env.DB_PORT}`);

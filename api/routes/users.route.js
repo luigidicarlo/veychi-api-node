@@ -1,7 +1,7 @@
 const express = require('express');
 const _ = require('lodash');
 const bcrypt = require('bcryptjs');
-const { body, validationResult } = require('express-validator');
+const { check, validationResult } = require('express-validator');
 const { model: User, fillable, updatable } = require('../models/User.model');
 const Response = require('../models/Response.model');
 const { validateToken } = require('../middlewares/jwt-auth.middleware');
@@ -21,20 +21,16 @@ app.get('/users', validateToken, (req, res) => {
 });
 
 app.post('/users', [
-    body('username')
-        .notEmpty()
-        .trim().matches(regex.usernames),
-    body('fname')
-        .notEmpty()
-        .trim().matches(regex.names),
-    body('lname')
-        .notEmpty()
-        .trim().matches(regex.names),
-    body('password')
+    check('username')
+        .notEmpty().trim().matches(regex.usernames),
+    check('fname')
+        .notEmpty().trim().matches(regex.names),
+    check('lname')
+        .notEmpty().trim().matches(regex.names),
+    check('password')
         .notEmpty().trim().isLength({ min: 8 }),
-    body('email')
-        .notEmpty()
-        .trim().isEmail()
+    check('email')
+        .notEmpty().trim().isEmail()
 ], (req, res) => {
     const errors = validationResult(req);
 
@@ -46,23 +42,32 @@ app.post('/users', [
 
     const user = new User(body);
 
-    user.save((err, user) => {
+    User.findOne({ $or: [
+        { username: user.username },
+        { email: user.email }
+    ] }, (err, result) => {
         if (err) return res.status(400).json(new Response(false, null, err));
 
-        return res.status(201).json(new Response(true, user, null));
+        if (result) return res.status(400).json(new Response(false, null, { message: 'User already exists.' }));
+
+        user.save((err, user) => {
+            if (err) return res.status(400).json(new Response(false, null, err));
+    
+            return res.status(201).json(new Response(true, user, null));
+        });
     });
 });
 
 app.put('/users', [
     validateToken,
-    body('fname')
-        .if(body('fname').notEmpty())
+    check('fname')
+        .if(check('fname').notEmpty())
         .trim().matches(regex.names),
-    body('lname')
-        .if(body('lname').notEmpty())
+    check('lname')
+        .if(check('lname').notEmpty())
         .trim().matches(regex.names),
-    body('email')
-        .if(body('email').notEmpty())
+    check('email')
+        .if(check('email').notEmpty())
         .trim().isEmail()
 ], (req, res) => {
     const errors = validationResult(req);
@@ -72,23 +77,29 @@ app.put('/users', [
     const body = _.pick(req.body, updatable);
     body.updatedAt = new Date(Date.now());
 
-    User.updateOne(
-        { _id: req.user.id, active: true },
-        body,
-        {new: true, runValidators: true},
-        (err, updated) => {
-            if (err) return res.status(500).json(new Response(false, null, err));
+    User.findOne({ email: body.email }, (err, result) => {
+        if (err) return res.status(400).json(new Response(false, null, err));
 
-            if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'User not found or account disabled.' }));
+        if (result) return res.status(400).json(new Response(false, null, { message: 'Email is already taken.' }));
 
-            return res.json(new Response(true, updated, null));
-        }
-    );
+        User.updateOne(
+            { _id: req.user.id, active: true },
+            body,
+            {new: true, runValidators: true},
+            (err, updated) => {
+                if (err) return res.status(500).json(new Response(false, null, err));
+    
+                if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'User not found or account disabled.' }));
+    
+                return res.json(new Response(true, updated, null));
+            }
+        );
+    });
 });
 
 app.put('/users/password', [
     validateToken,
-    body('password')
+    check('password')
         .notEmpty().trim().isLength({ min: 8, max: 32 })
 ], (req, res) => {
     const errors = validationResult(req);

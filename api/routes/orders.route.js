@@ -4,6 +4,7 @@ const Response = require('../models/Response.model');
 const { check, validationResult } = require('express-validator');
 const { model: Order, fillable, updatable } = require('../models/Order.model');
 const { validateToken } = require('../middlewares/jwt-auth.middleware');
+const { isAdmin } = require('../middlewares/auth.middleware');
 const { getSubtotal, applyCoupons } = require('../utils/functions');
 const statuses = require('../utils/order-statuses');
 
@@ -26,7 +27,7 @@ app.post('/orders', [
     check('products.*._id')
         .notEmpty().trim().isMongoId(),
     check('coupons')
-        .notEmpty().isArray(),
+        .isArray(),
     check('coupons.*._id')
         .notEmpty().trim().isMongoId()
 ], (req, res) => {
@@ -56,6 +57,7 @@ app.post('/orders', [
 
 app.put('/orders/:id', [
     validateToken,
+    isAdmin,
     check('id')
         .notEmpty().trim().isMongoId(),
     check('status')

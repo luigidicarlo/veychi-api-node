@@ -1,13 +1,16 @@
 const mongoose = require('mongoose');
 const uniqueValidator = require('mongoose-unique-validator');
 const regex = require('../utils/regex');
+
 const Schema = mongoose.Schema;
 
 const roles = ['CLIENT_ROLE', 'ADMIN_ROLE'];
+
 const fillable = [
     'username', 'fname', 'lname',
     'password', 'email', 'imageUrl'
 ];
+
 const updatable = [
     'fname', 'lname', 'email', 'imageUrl'
 ]
@@ -16,11 +19,11 @@ const userSchema = new Schema({
     username: {
         type: String,
         required: true,
-        unique: true,
-        uniqueCaseInsensitive: true,
         minlength: 8,
         maxlength: 32,
-        match: regex.usernames
+        match: regex.usernames,
+        lowercase: true,
+        trim: true
     },
     fname: {
         type: String,
@@ -82,7 +85,7 @@ userSchema.methods.toJSON = function() {
     const userObject = user.toObject();
     delete userObject.password;
     return userObject;
-}
+};
 
 module.exports = {
     schema: userSchema,
