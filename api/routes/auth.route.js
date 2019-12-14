@@ -5,15 +5,17 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const Response = require('../models/Response.model');
 const { model: User } = require('../models/User.model');
-const {body, validationResult} = require('express-validator');
+const {check, validationResult} = require('express-validator');
+const constants = require('../utils/constants');
+const msg = require('../utils/messages');
 
 const app = express();
 
 app.post('/login', [
-    body('username')
-        .notEmpty(),
-    body('password')
-        .notEmpty()
+    check('username')
+        .notEmpty().trim().isLength({ min: constants.usernameMinLength, max: constants.usernameMaxLength }),
+    check('password')
+        .notEmpty().trim().isLength({ min: constants.usernameMinLength, max: constants.usernameMaxLength })
 ], (req, res) => {
     const errors = validationResult(req);
 
@@ -32,10 +34,10 @@ app.post('/login', [
         (err, user) => {
             if (err) return res.status(400).json(new Response(false, null, err));
 
-            if (!user) return res.status(404).json(new Response(false, null, { message: 'Invalid login details or account is disabled.' }));
+            if (!user) return res.status(404).json(new Response(false, null, { message: msg.invalidLogin }));
 
             if (!bcrypt.compareSync(loginInfo.password, user.password)) {
-                return res.status(401).json(new Response(false, null, { message: 'Invalid login details or account is disabled.' }));
+                return res.status(401).json(new Response(false, null, { message: msg.invalidLogin }));
             }
 
             const token = jwt.sign(
@@ -50,9 +52,9 @@ app.post('/login', [
 });
 
 app.post('/password/token', [
-    body('username')
-        .if(body('username').notEmpty())
-        .trim()
+    check('username')
+        .if(check('username').notEmpty())
+        .trim().isLength({ min: constants.usernameMinLength, max: constants.usernameMaxLength })
 ], (req, res) => {
     const errors = validationResult(req);
 
@@ -60,29 +62,34 @@ app.post('/password/token', [
 
     const body = _.pick(req.body, ['username']);
 
-    User.findOne({
-        $or: [
-            {email: body.username},
-            {username: body.username}
-        ]},
+    User.findOne(
+        {
+            $or: [
+                {email: body.username},
+                {username: body.username}
+            ], 
+            active: true
+        },
         (err, user) => {
-            if (err) return res.status(500).json(new Response(false, null, err));
+            if (err) return res.status(400).json(new Response(false, null, err));
 
-            if (!user) return res.status(404).json(new Response(false, null, { message: 'User not found.' }));
+            if (!user) return res.status(404).json(new Response(false, null, { message: msg.userNotFound }));
 
             const token = crypto.randomBytes(16).toString('hex');
 
-            User.findByIdAndUpdate(
-                user._id,
+            User.updateOne(
+                { _id: user._id, active: true },
                 {
                     recoverToken: token,
-                    recoverTokenExp: Date.now() + (3600 * 24 * 1000)
+                    recoverTokenExp: Date.now() + constants.recoverTokenExp
                 },
-                { new: true, runValidators: true },
+                { runValidators: true },
                 (err, updated) => {
-                    if (err) return res.status(500).json(new Response(false, null, err));
+                    if (err) return res.status(400).json(new Response(false, null, err));
 
-                    return res.json(new Response(true, { token, user: updated }, null));
+                    if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.userNotFound }));
+
+                    return res.json(new Response(true, token, null));
                 }
             );
         }
@@ -90,12 +97,10 @@ app.post('/password/token', [
 });
 
 app.post('/password/recovery-change', [
-    body('password')
-        .notEmpty()
-        .trim(),
-    body('token')
-        .notEmpty()
-        .trim()
+    check('password')
+        .notEmpty().trim().isLength({ min: constants.usernameMinLength, max: constants.usernameMaxLength }),
+    check('token')
+        .notEmpty().trim()
 ], (req, res) => {
     const errors = validationResult(req);
 
@@ -103,25 +108,31 @@ app.post('/password/recovery-change', [
 
     const body = _.pick(req.body, ['password', 'token']);
 
-    User.findOne({ recoverToken: body.token }, (err, user) => {
-        if (err) res.status(500).json(new Response(false, null, err));
+    User.findOne({ recoverToken: body.token, active: true }, (err, user) => {
+        if (err) return res.status(400).json(new Response(false, null, err));
 
-        if (!user) res.status(404).json(new Response(false, null, { message: 'Cannot recover password. Invalid token.' }));
+        if (!user) return res.status(404).json(new Response(false, null, { message: msg.invalidRecoverToken }));
 
-        if (Date.now() > user.recoverTokenExp) return res.status(401).json(new Response(false, null, { message: 'Cannot recover password. Invalid token.' }));
+        if (Date.now() > user.recoverTokenExp) return res.status(401).json(new Response(false, null, { message: msg.invalidRecoverToken }));
 
-        User.findByIdAndUpdate(
-            user._id,
+        User.updateOne(
+            { _id: user._id, active: true },
             {
                 password: bcrypt.hashSync(body.password, bcrypt.genSaltSync()),
                 recoverToken: null,
                 recoverTokenExp: null
             },
-            { new: true, runValidators: true },
+            { runValidators: true },
             (err, updated) => {
-                if (err) return res.status(500).json(new Response(false, null, err));
+                if (err) return res.status(400).json(new Response(false, null, err));
 
-                return res.json(new Response(true, updated, null));
+                if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.invalidRecoverToken }));
+
+                User.findOne({ _id: user._id, active: true }, (err, updatedUser) => {
+                    if (err) return res.status(400).json(new Response(false, null, err));
+
+                    return res.json(new Response(true, updatedUser, null));
+                });
             }
         )
     });

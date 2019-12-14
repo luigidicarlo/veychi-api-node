@@ -7,15 +7,16 @@ const Response = require('../models/Response.model');
 const { validateToken } = require('../middlewares/jwt-auth.middleware');
 const roles = require('../utils/roles');
 const regex = require('../utils/regex');
+const msg = require('../utils/messages');
 
 require('../config/app.config');
 
 const app = express();
 
 app.get('/users', validateToken, (req, res) => {
-    if (!req.user) return res.status(404).json(new Response(false, null, { message: 'No user found.' }));
+    if (!req.user) return res.status(404).json(new Response(false, null, { message: msg.userNotFound }));
 
-    if (!req.user.active) return res.status(401).json(new Response(false, null, { message: 'User account is disabled.' }));
+    if (!req.user.active) return res.status(401).json(new Response(false, null, { message: msg.userNotFound }));
 
     return res.json(new Response(true, req.user, null));
 });
@@ -51,7 +52,7 @@ app.post('/users', [
     ] }, (err, result) => {
         if (err) return res.status(400).json(new Response(false, null, err));
 
-        if (result) return res.status(400).json(new Response(false, null, { message: 'User already exists.' }));
+        if (result) return res.status(400).json(new Response(false, null, { message: msg.userExists }));
 
         user.save((err, user) => {
             if (err) return res.status(400).json(new Response(false, null, err));
@@ -86,7 +87,7 @@ app.put('/users', [
     User.findOne({ email: body.email }, (err, result) => {
         if (err) return res.status(400).json(new Response(false, null, err));
 
-        if (result) return res.status(400).json(new Response(false, null, { message: 'Email is already taken.' }));
+        if (result) return res.status(400).json(new Response(false, null, { message: msg.emailTaken }));
 
         User.updateOne(
             { _id: req.user.id, active: true },
@@ -95,7 +96,7 @@ app.put('/users', [
             (err, updated) => {
                 if (err) return res.status(400).json(new Response(false, null, err));
     
-                if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'User not found or account disabled.' }));
+                if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.userNotFound }));
 
                 User.findOne({ _id: req.user.id, active: true }, (err, user) => {
                     if (err) return res.status(400).json(new Response(false, null, err));
@@ -125,7 +126,7 @@ app.put('/users/password', [
         (err, updated) => {
             if (err) return res.status(400).json(new Response(false, null, err));
 
-            if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'User not found or account disabled.' }));
+            if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.userNotFound }));
 
             User.findOne({ _id: req.user.id, active: true }, (err, user) => {
                 if (err) return res.status(400).json(new Response(false, null, err));
@@ -144,7 +145,7 @@ app.delete('/users', validateToken, (req, res) => {
         (err, deleted) => {
             if (err) return res.status(400).json(new Response(false, null, err));
 
-            if (deleted.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'User not found or already disabled.' }));
+            if (deleted.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.userAlreadyDisabled }));
 
             User.findOne({ _id: req.user.id, active: false }, (err, user) => {
                 if (err) return res.status(400).json(new Response(false, null, err));

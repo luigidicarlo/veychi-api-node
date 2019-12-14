@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const uniqueValidator = require('mongoose-unique-validator');
 const regex = require('../utils/regex');
+const constants = require('../utils/constants');
 
 const Schema = mongoose.Schema;
 
@@ -19,8 +20,8 @@ const userSchema = new Schema({
     username: {
         type: String,
         required: true,
-        minlength: 8,
-        maxlength: 32,
+        minlength: constants.usernameMinLength,
+        maxlength: constants.usernameMaxLength,
         match: regex.usernames,
         lowercase: true,
         trim: true
@@ -43,7 +44,7 @@ const userSchema = new Schema({
     password: {
         type: String,
         required: true,
-        minlength: 8
+        minlength: constants.usernameMinLength
     },
     recoverToken: {
         type: String,
