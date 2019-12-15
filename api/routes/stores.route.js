@@ -7,11 +7,12 @@ const { storeExists } = require('../middlewares/stores.middleware');
 const { model: Store, fillable, updatable } = require('../models/Store.model');
 const regex = require('../utils/regex');
 const constants = require('../utils/constants');
+const msg = require('../utils/messages');
 
 const app = express();
 
 app.get('/stores', [validateToken, storeExists], (req, res) => {
-    if (!req.store) return res.status(404).json(new Response(true, null, null));
+    if (!req.store) return res.status(404).json(new Response(false, null, { message: msg.userLacksStore }));
 
     return res.json(new Response(true, req.store, null));
 });
@@ -38,20 +39,35 @@ app.post('/stores', [
 ], (req, res) => {
     const errors = validationResult(req);
 
-    if (req.store) return res.status(400).json(new Response(false, null, { message: 'The user already has a store associated.' }));
+    if (req.store) return res.status(400).json(new Response(false, null, { message: msg.storeUserAlreadyExists }));
     
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
     const body = _.pick(req.body, fillable);
     body.user = req.user.id;
 
-    const newStore = new Store(body);
+    Store.findOne(
+        { 
+            $or: [
+                { name: body.name },
+                { rut: body.rut}
+            ],
+            active: true
+        },
+        (err, result) => {
+            if (err) return res.status(400).json(new Response(false, null, err));
 
-    newStore.save((err, result) => {
-        if (err) return res.status(500).json(new Response(false, null, err));
+            if (result) return res.status(400).json(new Response(false, null, { message: msg.storeExists }));
 
-        return res.status(201).json(new Response(true, result, null));
-    });
+            const newStore = new Store(body);
+
+            newStore.save((err, result) => {
+                if (err) return res.status(400).json(new Response(false, null, err));
+        
+                return res.status(201).json(new Response(true, result, null));
+            });
+        }
+    );
 });
 
 app.put('/stores', [
@@ -74,24 +90,43 @@ app.put('/stores', [
         .if(check('activity').notEmpty())
         .trim().isLength({ min: constants.namesMinLength, max: constants.namesMaxLength })
 ], (req, res) => {
-    if (!req.store) return res.status(404).json(new Response(false, null, { message: 'User does not possess a store.' }));
+    if (!req.store) return res.status(404).json(new Response(false, null, { message: msg.userLacksStore }));
 
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array));
+    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
     const body = _.pick(req.body, updatable);
 
-    Store.updateOne(
-        { _id: req.store._id, active: true },
-        body,
-        { new: true, runValidators: true },
-        (err, updated) => {
-            if (err) return res.status(500).json(new Response(false, null, err));
+    Store.findOne(
+        {
+            $or: [
+                { name: body.name },
+                { rut: body.rut }
+            ],
+            active: true
+        },
+        (err, result) => {
+            if (err) return res.status(400).json(new Response(false, null, err));
 
-            if (!updated) return res.status(400).json(new Response(false, null, { message: 'Store not found or user does not possess a store.' }));
-    
-            return res.json(new Response(true, updated, null));
+            if (result) return res.status(400).json(new Response(false, null, { message: storeExists }));
+
+            Store.updateOne(
+                { _id: req.store._id, active: true },
+                body,
+                { runValidators: true },
+                (err, updated) => {
+                    if (err) return res.status(400).json(new Response(false, null, err));
+        
+                    if (!updated) return res.status(400).json(new Response(false, null, { message: msg.storeUpdateFailed }));
+
+                    Store.findOne({ _id: req.store._id, active: true }, (err, store) => {
+                        if (err) return res.status(400).json(new Response(false, null, err));
+                        
+                        return res.json(new Response(true, store, null));
+                    });
+                }
+            );
         }
     );
 });
@@ -104,11 +139,15 @@ app.delete('/stores', [validateToken, storeExists], (req, res) => {
         { active: false },
         { new: true },
         (err, deleted) => {
-            if (err) return res.status(500).json(new Response(false, null, err));
+            if (err) return res.status(400).json(new Response(false, null, err));
 
-            if (!deleted) return res.status(400).json(new Response(false, null, { message: 'Store not found or already disabled.' }));
+            if (deleted.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.storeAlreadyDisabled }));
 
-            return res.json(new Response(true, deleted, null));
+            Store.findOne({ _id: req.store._id, active: false }, (err, store) => {
+                if (err) return res.status(400).json(new Response(false, null, err));
+                
+                return res.json(new Response(true, store, null));
+            });
         }
     );
 });

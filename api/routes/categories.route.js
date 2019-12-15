@@ -8,14 +8,15 @@ const { check, validationResult } = require('express-validator');
 const { validateToken } = require('../middlewares/jwt-auth.middleware');
 const { isAdmin } = require('../middlewares/auth.middleware');
 const constants = require('../utils/constants');
+const msg = require('../utils/messages');
 
 const app = express();
 
 app.get('/categories', (req, res) => {
     Category.find({ active: true }, (err, categories) => {
-        if (err) return res.status(500).json(new Response(false, null, err));
+        if (err) return res.status(400).json(new Response(false, null, err));
 
-        if (!categories) return res.status(404).json(new Response(true, [], null));
+        if (!categories.length) return res.status(404).json(new Response(false, null, { message: msg.categoriesNotFound }));
 
         return res.json(new Response(true, categories, null));
     });
@@ -25,10 +26,14 @@ app.get('/categories/:id', [
     check('id')
         .trim().notEmpty().isMongoId()
 ], (req, res) => {
-    Product.findMany({ category: req.params.id, active: true }, (err, products) => {
-        if (err) return res.status(500).json(new Response(false, null, err));
+    const errors = validationResult(req);
 
-        if (!products) return res.status(404).json(new Response(true, [], null));
+    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+
+    Product.find({ category: req.params.id, active: true }, (err, products) => {
+        if (err) return res.status(400).json(new Response(false, null, err));
+
+        if (!products.length) return res.status(404).json(new Response(true, [], null));
 
         return res.json(new Response(true, products, null));
     });
@@ -52,12 +57,18 @@ app.post('/categories', [
 
     const body = _.pick(req.body, fillable);
 
-    const newCategory = new Category(body);
-    
-    newCategory.save((err, inserted) => {
-        if (err) return res.status(500).json(new Response(false, null, err));
+    Category.findOne({ name: body.name, active: true }, (err, result) => {
+        if (err) return res.status(400).json(new Response(false, null, err));
 
-        return res.status(201).json(new Response(true, inserted, null));
+        if (result) return res.status(400).json(new Response(false, null, { message: msg.categoryExists }));
+
+        const newCategory = new Category(body);
+    
+        newCategory.save((err, inserted) => {
+            if (err) return res.status(400).json(new Response(false, null, err));
+    
+            return res.status(201).json(new Response(true, inserted, null));
+        });
     });
 });
 
@@ -81,17 +92,28 @@ app.put('/categories/:id', [
     const body = _.pick(req.body, updatable);
     body.updatedAt = new Date(Date.now());
 
-    Category.updateOne(
-        { _id: req.params.id, active: true },
-        body,
-        (err, updated) => {
-            if (err) return res.status(500).json(new Response(false, null, err));
+    Category.findOne({ name: body.name }, (err, result) => {
+        if (err) return res.status(400).json(new Response(false, null, err));
 
-            if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'Category not found or impossible to update.' }));
+        if (result) return res.status(400).json(new Response(false, null, { message: msg.categoryExists }));
 
-            return res.json(new Response(true, updated, null));
-        }
-    );
+        Category.updateOne(
+            { _id: req.params.id, active: true },
+            body,
+            { runValidators: true },
+            (err, updated) => {
+                if (err) return res.status(400).json(new Response(false, null, err));
+    
+                if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.categoryNotFound }));
+    
+                Category.findOne({ _id: req.params.id, active: true }, (err, modifiedCategory) => {
+                    if (err) return res.status(400).json(new Response(false, null, err));
+
+                    return res.json(new Response(true, modifiedCategory, null));
+                });
+            }
+        );
+    });
 });
 
 app.delete('/categories/:id', [
@@ -102,11 +124,15 @@ app.delete('/categories/:id', [
         { _id: req.params.id, active: true },
         { active: false },
         (err, deleted) => {
-            if (err) return res.status(500).json(new Response(false, null, err));
+            if (err) return res.status(400).json(new Response(false, null, err));
 
-            if (deleted.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'Category not found or impossible to disable.' }));
+            if (deleted.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.categoryAlreadyDisabled }));
 
-            return res.json(new Response(true, deleted, null));
+            Category.findOne({ _id: req.params.id, active: false }, (err, category) => {
+                if (err) return res.status(400).json(new Response(false, null, err));
+
+                return res.json(new Response(true, category, null));
+            });
         }
     );
 });

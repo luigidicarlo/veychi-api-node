@@ -17,7 +17,6 @@ const storeSchema = new Schema({
     name: {
         type: String,
         required: true,
-        unique: true,
         minlength: constants.namesMinLength,
         maxlength: constants.namesMaxLength
     },
@@ -38,7 +37,6 @@ const storeSchema = new Schema({
     rut: {
         type: String,
         required: true,
-        unique: true,
         match: regex.rut
     },
     activity: {

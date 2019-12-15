@@ -19,7 +19,6 @@ const couponSchema = new Schema({
     name: {
         type: String,
         required: true,
-        unique: true,
         minlength: constants.namesMinLength,
         maxlength: constants.namesMaxLength,
         match: regex.couponNames

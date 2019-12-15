@@ -11,7 +11,6 @@ const categorySchema = new Schema({
     name: {
         type: String,
         required: true,
-        unique: true,
         minlength: constants.namesMinLength,
         maxlength: constants.namesMaxLength
     },

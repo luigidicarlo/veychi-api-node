@@ -1,8 +1,6 @@
 const express = require('express');
 const Response = require('../models/Response.model');
 const { model: Product } = require('../models/Product.model');
-const conn = require('../config/database.config');
-const { validateToken } = require('../middlewares/jwt-auth.middleware');
 
 const app = express();
 

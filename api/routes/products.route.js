@@ -8,14 +8,15 @@ const { storeExists } = require('../middlewares/stores.middleware');
 const { check, validationResult } = require('express-validator');
 const regex = require('../utils/regex');
 const constants = require('../utils/constants');
+const msg = require('../utils/messages');
 
 const app = express();
 
 app.get('/products', (req, res) => {
     Product.find({ active: true }, (err, products) => {
-        if (err) return res.status(500).json(new Response(false, null, err));
+        if (err) return res.status(400).json(new Response(false, null, err));
 
-        if (!products) return res.status(404).json(new Response(true, [], null));
+        if (!products.length) return res.status(404).json(new Response(false, null, { message: msg.productsNotFound }));
 
         return res.json(new Response(true, products, null));
     });
@@ -24,19 +25,19 @@ app.get('/products', (req, res) => {
 app.get('/products/:id',
     check('id')
         .trim().notEmpty().isMongoId()
-, (req, res) => {
-    const errors = validationResult(req);
+    , (req, res) => {
+        const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+        if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-    Product.findOne({ _id: req.params.id, active: true }, (err, product) => {
-        if (err) return res.status(500).json(new Response(false, null, err));
+        Product.findOne({ _id: req.params.id, active: true }, (err, product) => {
+            if (err) return res.status(400).json(new Response(false, null, err));
 
-        if (!product) return res.status(404).json(new Response(true, [], null));
+            if (!product) return res.status(404).json(new Response(false, null, { message: msg.productNotFound }));
 
-        return res.json(new Response(true, product, null));
+            return res.json(new Response(true, product, null));
+        });
     });
-});
 
 app.post('/products', [
     validateToken,
@@ -59,29 +60,41 @@ app.post('/products', [
     check('images')
         .if(check('images').notEmpty())
         .isArray(),
+    check('images.*')
+        .if(check('images').notEmpty())
+        .trim().isURL(),
     check('tags')
         .if(check('tags').notEmpty())
         .isArray(),
+    check('tags.*')
+        .if(check('tags').notEmpty())
+        .trim(),
     check('category')
         .trim().notEmpty().isMongoId()
 ], (req, res) => {
     const errors = validationResult(req);
 
-    if (!req.store) return res.status(401).json(new Response(false, null, { message: 'User does not possess a store.' }))
-    
+    if (!req.store) return res.status(401).json(new Response(false, null, { message: msg.userLacksStore }))
+
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-    if (!req.store.enabled) return res.status(401).json(new Response(false, null, { message: 'Store is not authorized to manage products.' }));
+    if (!req.store.enabled) return res.status(401).json(new Response(false, null, { message: msg.storeUnauthorized }));
 
     const body = _.pick(req.body, fillable);
     body.store = req.store._id;
 
-    const newProduct = new Product(body);
+    Product.findOne({ name: body.name, store: req.store._id }, (err, result) => {
+        if (err) return res.status(400).json(new Response(false, null, err));
 
-    newProduct.save((err, product) => {
-        if (err) return res.status(500).json(new Response(false, null, err));
+        if (result) return res.status(400).json(new Response(false, null, { message: msg.productExists }));
 
-        return res.status(201).json(new Response(true, product, null));
+        const newProduct = new Product(body);
+
+        newProduct.save((err, product) => {
+            if (err) return res.status(400).json(new Response(false, null, err));
+
+            return res.status(201).json(new Response(true, product, null));
+        });
     });
 });
 
@@ -108,34 +121,50 @@ app.put('/products/:id', [
     check('images')
         .if(check('images').notEmpty())
         .isArray(),
+    check('images.*')
+        .if(check('images').notEmpty())
+        .trim().isURL(),
     check('tags')
         .if(check('tags').notEmpty())
         .isArray(),
+    check('tags.*')
+        .if(check('tags').notEmpty())
+        .trim(),
     check('category')
         .if(check('category').notEmpty())
         .trim().isMongoId()
 ], (req, res) => {
     const errors = validationResult(req);
 
-    if (!req.store) return res.status(401).json(new Response(false, null, { message: 'User does not possess a store.' }));
-    
+    if (!req.store) return res.status(401).json(new Response(false, null, { message: msg.userLacksStore }));
+
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-    if (!req.store.enabled) return res.status(401).json(new Response(false, null, { message: 'Store is not authorized to manage products.' }));
+    if (!req.store.enabled) return res.status(401).json(new Response(false, null, { message: msg.storeUnauthorized }));
 
     const body = _.pick(req.body, updatable);
 
-    Product.updateOne(
-        { _id: req.params.id, store: req.store._id, active: true },
-        body,
-        (err, updated) => {
-            if (err) return res.status(500).json(new Response(false, null, err));
+    Product.findOne({ name: body.name, store: req.store._id }, (err, result) => {
+        if (err) return res.status(400).json(new Response(false, null, err));
 
-            if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'Product not found or impossible to update.' }));
+        if (result) return res.status(400).json(new Response(false, null, { message: msg.productExists }));
 
-            return res.json(new Response(true, updated, null));
-        }
-    );
+        Product.updateOne(
+            { _id: req.params.id, store: req.store._id, active: true },
+            body,
+            (err, updated) => {
+                if (err) return res.status(400).json(new Response(false, null, err));
+
+                if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.productUpdateFailed }));
+
+                Product.findOne({ _id: req.params.id, store: req.store._id }, (err, product) => {
+                    if (err) return res.status(400).json(new Response(false, null, err));
+
+                    return res.json(new Response(true, product, null));
+                });
+            }
+        );
+    });
 });
 
 app.delete('/products/:id', [
@@ -144,19 +173,23 @@ app.delete('/products/:id', [
     check('id')
         .trim().notEmpty().isMongoId()
 ], (req, res) => {
-    if (!req.store) return res.status(401).json(new Response(false, null, { message: 'User does not possess a store.' }));
+    if (!req.store) return res.status(401).json(new Response(false, null, { message: msg.userLacksStore }));
 
-    if (!req.store.enabled) return res.status(401).json(new Response(false, null, { message: 'Store is not authorized to manage products.' }));
+    if (!req.store.enabled) return res.status(401).json(new Response(false, null, { message: msg.storeUnauthorized }));
 
     Product.updateOne(
         { _id: req.params.id, store: req.store._id, active: true },
         { active: false },
         (err, deleted) => {
-            if (err) return res.status(500).json(new Response(false, null, err));
+            if (err) return res.status(400).json(new Response(false, null, err));
 
-            if (deleted.nModified <= 0) return res.status(400).json(new Response(false, null, { message: 'Product does not exist or impossible to disable it.' }));
+            if (deleted.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.productAlreadyDisabled }));
 
-            return res.json(new Response(true, deleted, null));
+            Product.findOne({ _id: req.params.id, store: req.store._id, active: false }, (err, product) => {
+                if (err) return res.status(400).json(new Response(false, null, err));
+
+                return res.json(new Response(true, product, null));
+            });
         }
     );
 });

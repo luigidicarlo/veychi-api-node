@@ -4,6 +4,7 @@ const morgan = require('morgan');
 const http = require('http');
 const socketIO = require('socket.io');
 const mongoose = require('mongoose');
+const { allowCors } = require('./api/middlewares/web-security.middleware');
 
 // Get configuration files
 require('./api/config/app.config');
@@ -33,6 +34,9 @@ app.use(morgan('dev'));
 
 // Parse body requests
 app.use(bodyParser.json())
+
+// CORS Policy
+app.use(allowCors);
 
 // Routes
 app.use(require('./api/routes/index'));
