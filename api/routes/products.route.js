@@ -1,5 +1,4 @@
 const express = require('express');
-const conn = require('../config/database.config');
 const _ = require('lodash');
 const Response = require('../models/Response.model');
 const { model: Product, fillable, updatable } = require('../models/Product.model');
