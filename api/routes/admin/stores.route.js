@@ -1,4 +1,5 @@
 const express = require('express');
+const { check, validationResult } = require('express-validator');
 const Response = require('../../models/Response.model');
 const { model: Store } = require('../../models/Store.model');
 const { validateToken } = require('../../middlewares/jwt-auth.middleware');
@@ -7,7 +8,33 @@ const msg = require('../../utils/messages');
 
 const app = express();
 
-app.post('/admin/stores/:id/enable', [validateToken, isAdmin], (req, res) => {
+app.get('/admin/stores/:enabled', [validateToken, isAdmin], [
+    check('enabled')
+        .notEmpty().trim().isBoolean()
+], (req, res) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+
+    const conditions = req.params.enabled 
+        ? { enabled: Boolean(req.params.enabled), active: true } 
+        : { active: true };
+
+    Store.find(conditions, (err, stores) => {
+        if (err) return res.status(400).json(new Response(false, null, err));
+
+        if (!stores.length) return res.status(404).json(new Response(false, null, { message: msg.storesNotFound }));
+
+        return res.json(new Response(true, stores, null));
+    });
+});
+
+app.put('/admin/stores/:id', [
+    validateToken,
+    isAdmin,
+    check('id')
+        .notEmpty().trim().isMongoId()
+], (req, res) => {
     Store.updateOne(
         { _id: req.params.id, active: true, enabled: false },
         { enabled: true },
@@ -25,7 +52,12 @@ app.post('/admin/stores/:id/enable', [validateToken, isAdmin], (req, res) => {
     );
 });
 
-app.post('/admin/stores/:id/disable', [validateToken, isAdmin], (req, res) => {
+app.delete('/admin/stores/:id', [
+    validateToken,
+    isAdmin,
+    check('id')
+        .notEmpty().trim().isMongoId()
+], (req, res) => {
     Store.updateOne(
         { _id: req.params.id, active: true, enabled: true },
         { enabled: false },

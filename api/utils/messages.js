@@ -1,5 +1,6 @@
 module.exports = {
     // Users
+    usersNotFound: 'No se encontraron usuarios.',
     userNotFound: 'No se encontró al usuario o la cuenta está desactivada.',
     invalidLogin: 'Datos incorrectos o la cuenta está desactivada.',
     invalidRecoverToken: 'No se ha podido restablecer la contraseña.',
@@ -27,6 +28,7 @@ module.exports = {
     storeExists: 'Los datos ingresados para la tienda se encuentran en uso.',
     storeUpdateFailed: 'No se encontró la tienda o falló la actualización.',
     storeAlreadyDisabled: 'No se encontró la tienda o ya está desactivada.',
+    storesNotFound: 'No se encontraron tiendas.',
 
     // Coupons
     couponsNotFound: 'No se encontraron cupones.',

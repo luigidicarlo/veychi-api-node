@@ -30,10 +30,27 @@ app.get('/categories/:id', [
 
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
+    Category.find({ parent: req.params.id, active: true }, (err, subcategories) => {
+        if (err) return res.status(400).json(new Response(false, null, err));
+
+        if (!subcategories.length) return res.status(404).json(new Response(false, null, { message: msg.categoriesNotFound }));
+
+        return res.json(new Response(true, subcategories, null));
+    });
+});
+
+app.get('/categories/:id/products', [
+    check('id')
+        .trim().notEmpty().isMongoId()
+], (req, res) => {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+
     Product.find({ category: req.params.id, active: true }, (err, products) => {
         if (err) return res.status(400).json(new Response(false, null, err));
 
-        if (!products.length) return res.status(404).json(new Response(true, [], null));
+        if (!products.length) return res.status(404).json(new Response(false, null, { message: msg.categoriesNotFound }));
 
         return res.json(new Response(true, products, null));
     });
