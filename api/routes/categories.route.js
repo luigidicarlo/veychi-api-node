@@ -6,6 +6,7 @@ const { model: Product } = require('../models/Product.model');
 const { check, validationResult } = require('express-validator');
 const { validateToken } = require('../middlewares/jwt-auth.middleware');
 const { isAdmin } = require('../middlewares/auth.middleware');
+const { isNotNull } = require('../utils/validations');
 const constants = require('../utils/constants');
 const msg = require('../utils/messages');
 
@@ -61,7 +62,7 @@ app.post('/categories', [
     check('name')
         .notEmpty().trim().isLength({ min: constants.namesMinLength, max: constants.namesMaxLength }),
     check('parent')
-        .if(check('parent').notEmpty())
+        .if(check('parent').notEmpty().custom(isNotNull))
         .trim().isMongoId(),
     check('imageUrl')
         .if(check('imageUrl').notEmpty())

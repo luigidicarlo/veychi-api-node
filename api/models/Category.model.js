@@ -16,7 +16,8 @@ const categorySchema = new Schema({
     },
     parent: {
         type: Schema.Types.ObjectId,
-        ref: 'Category'
+        ref: 'Category',
+        default: null
     },
     imageUrl: {
         type: String,
