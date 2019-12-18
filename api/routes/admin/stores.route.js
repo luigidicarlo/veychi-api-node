@@ -2,6 +2,8 @@ const express = require('express');
 const { check, validationResult } = require('express-validator');
 const Response = require('../../models/Response.model');
 const { model: Store } = require('../../models/Store.model');
+const { model: Product } = require('../../models/Product.model');
+const { model: Coupon } = require('../../models/Coupon.model');
 const { validateToken } = require('../../middlewares/jwt-auth.middleware');
 const { isAdmin } = require('../../middlewares/auth.middleware');
 const msg = require('../../utils/messages');
@@ -16,7 +18,7 @@ app.get('/admin/stores/:enabled', [validateToken, isAdmin], [
 
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-    const conditions = req.params.enabled 
+    const conditions = req.params.enabled !== '' && req.params.enabled !== null && req.params.enabled !== undefined
         ? { enabled: Boolean(req.params.enabled), active: true } 
         : { active: true };
 
@@ -70,7 +72,25 @@ app.delete('/admin/stores/:id', [
                 if (err) return res.status(400).json(new Response(false, null, err));
 
                 return res.json(new Response(true, store, null));
-            });
+
+                // Product.update(
+                //     { store: store._id },
+                //     { active: false },
+                //     (err, updatedProducts) => {
+                //         if (err) return res.status(400).json(new Response(false, null, err));
+
+                //         Coupon.update(
+                //             { store: store._id },
+                //             { active: false },
+                //             (err, updatedCoupons) => {
+                //                 if (err) return res.status(400).json(new Response(false, null, err));
+
+                                
+                //             }
+                //         );
+                //     }
+                // );
+            });            
         }
     );
 });

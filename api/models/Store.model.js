@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
-const uniqueValidator = require('mongoose-unique-validator');
+const Response = require('./Response.model');
+const { model: Product } = require('./Product.model');
+const { model: Coupon } = require('./Coupon.model');
 const regex = require('../utils/regex');
 const Schema = mongoose.Schema;
 const constants = require('../utils/constants');
@@ -63,8 +65,24 @@ const storeSchema = new Schema({
     }
 });
 
-storeSchema.plugin(uniqueValidator, {
-    message: '{PATH} is expected to be unique.'
+storeSchema.post('update', function(doc) {
+    if (!doc.enabled) {
+        Product.updateMany(
+            { store: doc._id },
+            { active: false },
+            (err, updatedProducts) => {
+                if (err) throw new Error(err);
+    
+                Coupon.updateMany(
+                    { store: doc._id },
+                    { active: false },
+                    (err, updatedCoupons) => {
+                        if (err) throw new Error(err);
+                    }
+                );
+            }
+        );
+    }
 });
 
 module.exports = {
