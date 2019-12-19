@@ -10,25 +10,18 @@ const msg = require('../../utils/messages');
 
 const app = express();
 
-app.get('/admin/stores/:enabled', [validateToken, isAdmin], [
-    check('enabled')
-        .notEmpty().trim().isBoolean()
-], (req, res) => {
-    const errors = validationResult(req);
+app.get('/admin/stores', [validateToken, isAdmin], async (req, res) => {
+    try {
+        const stores = await Store.find();
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+        if (!stores.length) {
+            return res.status(404).json(new Response(false, null, { message: msg.storesNotFound }));
+        }
 
-    const conditions = req.params.enabled !== '' && req.params.enabled !== null && req.params.enabled !== undefined
-        ? { enabled: Boolean(req.params.enabled), active: true } 
-        : { active: true };
-
-    Store.find(conditions, (err, stores) => {
-        if (err) return res.status(400).json(new Response(false, null, err));
-
-        if (!stores.length) return res.status(404).json(new Response(false, null, { message: msg.storesNotFound }));
-
-        return res.json(new Response(true, stores, null));
-    });
+        return res.json(stores);
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, err));
+    }
 });
 
 app.put('/admin/stores/:id', [
@@ -36,22 +29,24 @@ app.put('/admin/stores/:id', [
     isAdmin,
     check('id')
         .notEmpty().trim().isMongoId()
-], (req, res) => {
-    Store.updateOne(
-        { _id: req.params.id, active: true, enabled: false },
-        { enabled: true },
-        (err, updated) => {
-            if (err) return res.status(400).json(new Response(false, null, err));
+], async (req, res) => {
+    const errors = validationResult(req);
 
-            if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.adminStoresAlreadyEnabled }));
+    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-            Store.findOne({ _id: req.params.id, active: true, enabled: true }, (err, store) => {
-                if (err) return res.status(400).json(new Response(false, null, err));
+    try {
+        const updated = await Store.updateOne({ _id: req.params.id, active: true, enabled: false }, { enabled: true });
 
-                return res.json(new Response(true, store, null));
-            });
+        if (!updated.nModified) {
+            return res.status(400).json(new Response(false, null, { message: msg.adminStoresAlreadyEnabled }));
         }
-    );
+
+        const store = await Store.findOne({ _id: req.params.id, active: true, enabled: true });
+
+        return res.json(new Response(true, store, null));
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, err));
+    }
 });
 
 app.delete('/admin/stores/:id', [
@@ -59,40 +54,28 @@ app.delete('/admin/stores/:id', [
     isAdmin,
     check('id')
         .notEmpty().trim().isMongoId()
-], (req, res) => {
-    Store.updateOne(
-        { _id: req.params.id, active: true, enabled: true },
-        { enabled: false },
-        (err, updated) => {
-            if (err) return res.status(400).json(new Response(false, null, err));
+], async (req, res) => {
+    const errors = validationResult(req);
 
-            if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.adminStoresAlreadyDisabled }));
+    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    
+    try {
+        const updated = await Store.updateOne({ _id: req.params.id, active: true, enabled: true }, { enabled: false });
 
-            Store.findOne({ _id: req.params.id, active: true, enabled: false }, (err, store) => {
-                if (err) return res.status(400).json(new Response(false, null, err));
-
-                return res.json(new Response(true, store, null));
-
-                // Product.update(
-                //     { store: store._id },
-                //     { active: false },
-                //     (err, updatedProducts) => {
-                //         if (err) return res.status(400).json(new Response(false, null, err));
-
-                //         Coupon.update(
-                //             { store: store._id },
-                //             { active: false },
-                //             (err, updatedCoupons) => {
-                //                 if (err) return res.status(400).json(new Response(false, null, err));
-
-                                
-                //             }
-                //         );
-                //     }
-                // );
-            });            
+        if (!updated.nModified) {
+            return res.status(400).json(new Response(false, null, { message: msg.adminStoresAlreadyDisabled }));
         }
-    );
+
+        const store = await Store.findOne({ _id: req.params.id, active: true, enabled: false });
+
+        const updatedProducts = await Product.updateMany({ store: store._id }, { active: false });
+
+        const updatedCoupons = await Coupon.updateMany({ store: store._id }, { active: false });
+
+        return res.json(new Response(true, store, null));
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, err));
+    }
 });
 
 module.exports = app;

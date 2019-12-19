@@ -1,7 +1,4 @@
 const mongoose = require('mongoose');
-const Response = require('./Response.model');
-const { model: Product } = require('./Product.model');
-const { model: Coupon } = require('./Coupon.model');
 const regex = require('../utils/regex');
 const Schema = mongoose.Schema;
 const constants = require('../utils/constants');
@@ -62,26 +59,6 @@ const storeSchema = new Schema({
     active: {
         type: Boolean,
         default: true
-    }
-});
-
-storeSchema.post('update', function(doc) {
-    if (!doc.enabled) {
-        Product.updateMany(
-            { store: doc._id },
-            { active: false },
-            (err, updatedProducts) => {
-                if (err) throw new Error(err);
-    
-                Coupon.updateMany(
-                    { store: doc._id },
-                    { active: false },
-                    (err, updatedCoupons) => {
-                        if (err) throw new Error(err);
-                    }
-                );
-            }
-        );
     }
 });
 

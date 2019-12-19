@@ -5,6 +5,8 @@ const { check, validationResult } = require('express-validator');
 const { validateToken } = require('../middlewares/jwt-auth.middleware');
 const { storeExists } = require('../middlewares/stores.middleware');
 const { model: Store, fillable, updatable } = require('../models/Store.model');
+const { model: Coupon } = require('../models/Coupon.model')
+const { model: Product } = require('../models/Product.model')
 const regex = require('../utils/regex');
 const constants = require('../utils/constants');
 const msg = require('../utils/messages');
@@ -40,17 +42,17 @@ app.post('/stores', [
     const errors = validationResult(req);
 
     if (req.store) return res.status(400).json(new Response(false, null, { message: msg.storeUserAlreadyExists }));
-    
+
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
     const body = _.pick(req.body, fillable);
     body.user = req.user.id;
 
     Store.findOne(
-        { 
+        {
             $or: [
                 { name: body.name },
-                { rut: body.rut}
+                { rut: body.rut }
             ],
             active: true
         },
@@ -63,7 +65,7 @@ app.post('/stores', [
 
             newStore.save((err, result) => {
                 if (err) return res.status(400).json(new Response(false, null, err));
-        
+
                 return res.status(201).json(new Response(true, result, null));
             });
         }
@@ -117,12 +119,12 @@ app.put('/stores', [
                 { runValidators: true },
                 (err, updated) => {
                     if (err) return res.status(400).json(new Response(false, null, err));
-        
+
                     if (!updated) return res.status(400).json(new Response(false, null, { message: msg.storeUpdateFailed }));
 
                     Store.findOne({ _id: req.store._id, active: true }, (err, store) => {
                         if (err) return res.status(400).json(new Response(false, null, err));
-                        
+
                         return res.json(new Response(true, store, null));
                     });
                 }
@@ -131,25 +133,24 @@ app.put('/stores', [
     );
 });
 
-app.delete('/stores', [validateToken, storeExists], (req, res) => {
+app.delete('/stores', [validateToken, storeExists], async (req, res) => {
     if (!req.store) return res.status(404).json(new Response(false, null, { message: 'User does not possess a store.' }));
 
-    Store.updateOne(
-        { _id: req.store._id, active: true },
-        { active: false },
-        { new: true },
-        (err, deleted) => {
-            if (err) return res.status(400).json(new Response(false, null, err));
+    try {
+        const deleted = await Store.updateOne({ _id: req.store._id, active: true }, { active: false });
 
-            if (deleted.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.storeAlreadyDisabled }));
-
-            Store.findOne({ _id: req.store._id, active: false }, (err, store) => {
-                if (err) return res.status(400).json(new Response(false, null, err));
-                
-                return res.json(new Response(true, store, null));
-            });
+        if (!deleted.nModified) {
+            return res.status(400).json(new Response(false, null, { message: msg.storeAlreadyDisabled }));
         }
-    );
+
+        const updatedProducts = await Product.updateMany({ store: req.store._id }, { active: false });
+        const updatedCoupons = await Coupon.updateMany({ store: req.store._id }, { active: false });
+        const store = await Store.findOne({ _id: req.store._id, active: false });
+
+        return res.json(new Response(true, store, null));
+    } catch (error) {
+        return res.status(400).json(new Response(false, null, error));
+    }
 });
 
 module.exports = app;
