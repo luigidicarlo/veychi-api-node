@@ -14,8 +14,6 @@ const validateToken = (req, res, next) => {
 
             if (!user) return res.status(404).json(new Response(false, null, { message: 'User does not exist or account is disabled.' }));
 
-            console.log(user);
-
             req.user = user;
             next();
         });

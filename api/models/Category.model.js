@@ -5,7 +5,7 @@ const constants = require('../utils/constants');
 const Schema = mongoose.Schema;
 
 const fillable = ['name', 'parent', 'imageUrl'];
-const updatable = ['name', 'imageUrl'];
+const updatable = ['name', 'imageUrl', 'parent'];
 
 const categorySchema = new Schema({
     name: {
