@@ -1,7 +1,10 @@
 const mongoose = require('mongoose');
 const regex = require('../utils/regex');
-const Schema = mongoose.Schema;
 const constants = require('../utils/constants');
+const { model: Product } = require('./Product.model');
+const { model: Coupon } = require('./Coupon.model');
+
+const Schema = mongoose.Schema;
 
 const fillable = [
     'name', 'description', 'imageUrl', 
@@ -61,6 +64,30 @@ const storeSchema = new Schema({
         default: true
     }
 });
+
+storeSchema.methods.onDisabled = async function(id) {
+    try {
+        await Product.updateMany({ store: id }, { enabled: false })
+            .catch(err => { throw err; });
+        await Coupon.updateMany({ store: id }, { enabled: false })
+            .catch(err => { throw err; });
+        Promise.resolve(true);
+    } catch (err) {
+        throw err;
+    }
+};
+
+storeSchema.methods.onEnabled = async function(id) {
+    try {
+        const enabledProducts = await Product.updateMany({ store: id }, { enabled: true })
+            .catch(err => { throw err; });
+        const enabledCoupons = await Coupon.updateMany({ store: id }, { enabled: true })
+            .catch(err => { throw err; });
+        Promise.resolve(true);
+    } catch (err) {
+        throw err;
+    }
+}
 
 module.exports = {
     schema: storeSchema,

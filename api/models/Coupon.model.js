@@ -41,6 +41,10 @@ const couponSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'Store'
     },
+    enabled: {
+        type: Boolean,
+        default: true
+    },
     createdAt: {
         type: Date,
         default: new Date(Date.now())

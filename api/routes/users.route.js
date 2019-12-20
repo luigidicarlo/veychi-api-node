@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const { check, validationResult } = require('express-validator');
 const { model: User, fillable, updatable } = require('../models/User.model');
 const Response = require('../models/Response.model');
+const Err = require('../models/Error.model');
 const { validateToken } = require('../middlewares/jwt-auth.middleware');
 const roles = require('../utils/roles');
 const regex = require('../utils/regex');

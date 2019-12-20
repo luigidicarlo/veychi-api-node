@@ -61,6 +61,10 @@ const productSchema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'Category'
     },
+    enabled: {
+        type: Boolean,
+        default: true
+    },
     createdAt: {
         type: Date,
         default: new Date(Date.now())

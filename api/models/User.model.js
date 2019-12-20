@@ -3,6 +3,8 @@ const uniqueValidator = require('mongoose-unique-validator');
 const regex = require('../utils/regex');
 const constants = require('../utils/constants');
 
+const { model: Store } = require('./Store.model');
+
 const Schema = mongoose.Schema;
 
 const roles = ['CLIENT_ROLE', 'ADMIN_ROLE'];
@@ -82,10 +84,37 @@ userSchema.plugin(uniqueValidator, {
 });
 
 userSchema.methods.toJSON = function() {
-    const user = this;
-    const userObject = user.toObject();
-    delete userObject.password;
-    return userObject;
+    const user = this.toObject();
+    delete user.password;
+    return user;
+};
+
+userSchema.methods.onDisabled = async function(id) {
+    try {
+        const store = await Store.findOne({ user: id, active: true })
+            .catch(err => { throw err; });
+        
+        await Store.onDisabled(store._id)
+            .catch(err => { throw err; });
+
+        Promise.resolve(true);
+    } catch (err) {
+        throw err;
+    }
+};
+
+userSchema.methods.onEnabled = async function(id) {
+    try {
+        const store = await Store.findOne({ user: id, active: false })
+            .catch(err => { throw err; });
+
+        await Store.onEnabled(store._id)
+            .catch(err => { throw err; });
+
+        Promise.resolve(true);
+    } catch (err) {
+        throw err;
+    }
 };
 
 module.exports = {
