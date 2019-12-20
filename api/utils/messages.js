@@ -29,6 +29,7 @@ module.exports = {
     storeUpdateFailed: 'No se encontró la tienda o falló la actualización.',
     storeAlreadyDisabled: 'No se encontró la tienda o ya está desactivada.',
     storesNotFound: 'No se encontraron tiendas.',
+    storeNotFound: 'No se encontró la tienda.',
 
     // Coupons
     couponsNotFound: 'No se encontraron cupones.',

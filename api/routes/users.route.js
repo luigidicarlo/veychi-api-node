@@ -128,16 +128,20 @@ app.put('/users/password', [
 
 app.delete('/users', validateToken, async (req, res) => {
     try {
-        const disabled = await User.updateOne({ _id: req.user.id, active: true }, { active: false })
+        const user = await User.findOne({ _id: req.user.id, active: true })
+            .catch(err => { throw err; });
+
+        if (!user) return res.status(404).json(new Response(false, null, { message: msg.userNotFound }));
+
+        const disabled = await User.updateOne({ _id: user._id, active: true }, { active: false })
             .catch(err => { throw err; });
 
         if (!disabled.nModified) return res.status(400).json(new Response(false, null, { message: msg.userAlreadyDisabled }));
 
-        const user = await User.findOne({ _id: req.user.id, active: false })
-            .catch(err => { throw err; });
-
         await onDisabled(user._id)
             .catch(err => { throw err; });
+
+        user.active = false;
 
         return res.json(new Response(true, user, null));
     } catch (err) {

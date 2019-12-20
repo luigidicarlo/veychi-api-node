@@ -2,9 +2,9 @@ const Response = require('../models/Response.model');
 const Err = require('../models/Error.model');
 const { model: Store } = require('../models/Store.model');
 
-const storeExists = (req, res, next) => {
+const storeExists = async (req, res, next) => {
     try {
-        const store = Store.findOne({ user: req.user.id, active: true });
+        const store = await Store.findOne({ user: req.user.id, active: true });
 
         if (!store) req.store = null;
 

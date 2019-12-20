@@ -5,9 +5,7 @@ const Err = require('../models/Error.model');
 const { check, validationResult } = require('express-validator');
 const { validateToken } = require('../middlewares/jwt-auth.middleware');
 const { storeExists } = require('../middlewares/stores.middleware');
-const { model: Store, fillable, updatable } = require('../models/Store.model');
-const { model: Coupon } = require('../models/Coupon.model')
-const { model: Product } = require('../models/Product.model')
+const { model: Store, fillable, updatable, onDisabled } = require('../models/Store.model');
 const regex = require('../utils/regex');
 const constants = require('../utils/constants');
 const msg = require('../utils/messages');
@@ -39,38 +37,31 @@ app.post('/stores', [
     check('activity')
         .notEmpty()
         .trim().isLength({ min: constants.namesMinLength, max: constants.namesMaxLength })
-], (req, res) => {
+], async (req, res) => {
     const errors = validationResult(req);
 
     if (req.store) return res.status(400).json(new Response(false, null, { message: msg.storeUserAlreadyExists }));
 
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-    const body = _.pick(req.body, fillable);
-    body.user = req.user.id;
+    try {
+        const body = _.pick(req.body, fillable);
+        body.user = req.user.id;
 
-    Store.findOne(
-        {
-            $or: [
-                { name: body.name },
-                { rut: body.rut }
-            ],
-            active: true
-        },
-        (err, result) => {
-            if (err) return res.status(400).json(new Response(false, null, err));
+        const result = await Store.findOne({ $or: [{ name: body.name }, { rut: body.rut }] })
+            .catch(err => { throw err; });
 
-            if (result) return res.status(400).json(new Response(false, null, { message: msg.storeExists }));
+        if (result) return res.status(400).json(new Response(false, null, { message: msg.storeExists }));
 
-            const newStore = new Store(body);
+        const newStore = new Store(body);
 
-            newStore.save((err, result) => {
-                if (err) return res.status(400).json(new Response(false, null, err));
+        const store = await newStore.save()
+            .catch(err => { throw err; });
 
-                return res.status(201).json(new Response(true, result, null));
-            });
-        }
-    );
+        return res.status(201).json(new Response(true, store, null));
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, new Err(err)));
+    }
 });
 
 app.put('/stores', [
@@ -92,61 +83,53 @@ app.put('/stores', [
     check('activity')
         .if(check('activity').notEmpty())
         .trim().isLength({ min: constants.namesMinLength, max: constants.namesMaxLength })
-], (req, res) => {
+], async (req, res) => {
     if (!req.store) return res.status(404).json(new Response(false, null, { message: msg.userLacksStore }));
 
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-    const body = _.pick(req.body, updatable);
+    try {
+        const body = _.pick(req.body, updatable);
 
-    Store.findOne(
-        {
-            $or: [
-                { name: body.name },
-                { rut: body.rut }
-            ],
-            active: true
-        },
-        (err, result) => {
-            if (err) return res.status(400).json(new Response(false, null, err));
+        const result = await Store.findOne({ $or: [{ name: body.name }, { rut: body.rut }], active: true })
+            .catch(err => { throw err; });
 
-            if (result) return res.status(400).json(new Response(false, null, { message: storeExists }));
+        if (result) return res.status(400).json(new Response(false, null, { message: storeExists }));
 
-            Store.updateOne(
-                { _id: req.store._id, active: true },
-                body,
-                { runValidators: true },
-                (err, updated) => {
-                    if (err) return res.status(400).json(new Response(false, null, err));
+        const updated = await Store.updateOne({ _id: req.store._id, active: true }, body, { runValidators: true })
+            .catch(err => { throw err; });
 
-                    if (!updated) return res.status(400).json(new Response(false, null, { message: msg.storeUpdateFailed }));
+        if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.storeUpdateFailed }));
 
-                    Store.findOne({ _id: req.store._id, active: true }, (err, store) => {
-                        if (err) return res.status(400).json(new Response(false, null, err));
+        const store = await Store.findOne({ _id: req.store._id, active: true })
+            .catch(err => { throw err; });
 
-                        return res.json(new Response(true, store, null));
-                    });
-                }
-            );
-        }
-    );
+        return res.json(new Response(true, store, null));
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, new Err(err)));
+    }
 });
 
 app.delete('/stores', [validateToken, storeExists], async (req, res) => {
-    if (!req.store) return res.status(404).json(new Response(false, null, { message: 'User does not possess a store.' }));
+    if (!req.store) return res.status(404).json(new Response(false, null, { message: msg.userLacksStore }));
+
+    console.log(req.store._id);
 
     try {
+        const store = await Store.findOne({ _id: req.store._id, active: true });
+
+        if (!store) return res.status(404).json(new Response(false, null, { message: msg.storeNotFound }));
+
         const deleted = await Store.updateOne({ _id: req.store._id, active: true }, { active: false });
 
-        if (!deleted.nModified) {
-            return res.status(400).json(new Response(false, null, { message: msg.storeAlreadyDisabled }));
-        }
+        if (!deleted.nModified) return res.status(400).json(new Response(false, null, { message: msg.storeAlreadyDisabled }));
 
-        const updatedProducts = await Product.updateMany({ store: req.store._id }, { active: false });
-        const updatedCoupons = await Coupon.updateMany({ store: req.store._id }, { active: false });
-        const store = await Store.findOne({ _id: req.store._id, active: false });
+        await onDisabled(store._id)
+            .catch(err => { throw err; });
+
+        store.active = false;
 
         return res.json(new Response(true, store, null));
     } catch (error) {
