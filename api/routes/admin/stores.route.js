@@ -1,6 +1,7 @@
 const express = require('express');
 const { check, validationResult } = require('express-validator');
 const Response = require('../../models/Response.model');
+const Err = require('../../models/Error.model');
 const { model: Store } = require('../../models/Store.model');
 const { model: Product } = require('../../models/Product.model');
 const { model: Coupon } = require('../../models/Coupon.model');
@@ -20,7 +21,7 @@ app.get('/admin/stores', [validateToken, isAdmin], async (req, res) => {
 
         return res.json(stores);
     } catch (err) {
-        return res.status(400).json(new Response(false, null, err));
+        return res.status(400).json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -45,7 +46,7 @@ app.put('/admin/stores/:id', [
 
         return res.json(new Response(true, store, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, err));
+        return res.status(400).json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -74,7 +75,7 @@ app.delete('/admin/stores/:id', [
 
         return res.json(new Response(true, store, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, err));
+        return res.status(400).json(new Response(false, null, new Err(err)));
     }
 });
 
