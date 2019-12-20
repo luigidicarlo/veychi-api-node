@@ -1,6 +1,7 @@
 const express = require('express');
 const _ = require('lodash');
 const Response = require('../models/Response.model');
+const Err = require('../models/Error.model');
 const { model: Category, fillable, updatable } = require('../models/Category.model');
 const { model: Product } = require('../models/Product.model');
 const { check, validationResult } = require('express-validator');
@@ -12,48 +13,55 @@ const msg = require('../utils/messages');
 
 const app = express();
 
-app.get('/categories', (req, res) => {
-    Category.find({ active: true }, (err, categories) => {
-        if (err) return res.status(400).json(new Response(false, null, err));
-
+app.get('/categories', async (req, res) => {
+    try {
+        const categories = await Category.find({ active: true })
+            .catch(err => { throw err; });
+    
         if (!categories.length) return res.status(404).json(new Response(false, null, { message: msg.categoriesNotFound }));
-
+    
         return res.json(new Response(true, categories, null));
-    });
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, new Err(err)));
+    }
 });
 
 app.get('/categories/:id', [
-    check('id')
-        .trim().notEmpty().isMongoId()
-], (req, res) => {
+    check('id').trim().notEmpty().isMongoId()
+], async (req, res) => {
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-    Category.find({ parent: req.params.id, active: true }, (err, subcategories) => {
-        if (err) return res.status(400).json(new Response(false, null, err));
+    try {
+        const subcategories = await Category.find({ parent: req.params.id, active: true })
+            .catch(err => { throw err; });
 
         if (!subcategories.length) return res.status(404).json(new Response(false, null, { message: msg.categoriesNotFound }));
 
         return res.json(new Response(true, subcategories, null));
-    });
+    } catch(err) {
+        return res.status(400).json(new Response(false, null, new Err(err)));
+    }
 });
 
 app.get('/categories/:id/products', [
-    check('id')
-        .trim().notEmpty().isMongoId()
-], (req, res) => {
+    check('id').trim().notEmpty().isMongoId()
+], async (req, res) => {
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-    Product.find({ category: req.params.id, active: true }, (err, products) => {
-        if (err) return res.status(400).json(new Response(false, null, err));
+    try {
+        const products = await Product.find({ category: req.params.id, active: true })
+            .catch(err => { throw err; });
 
-        if (!products.length) return res.status(404).json(new Response(false, null, { message: msg.categoriesNotFound }));
+        if (!products.length) return res.status(404).json(new Response(false, null, { message: msg.productsNotFound }));
 
         return res.json(new Response(true, products, null));
-    });
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, new Err(err)));
+    }
 });
 
 app.post('/categories', [
@@ -67,26 +75,28 @@ app.post('/categories', [
     check('imageUrl')
         .if(check('imageUrl').notEmpty())
         .trim().isURL()
-], (req, res) => {
+], async (req, res) => {
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-    const body = _.pick(req.body, fillable);
-
-    Category.findOne({ name: body.name, active: true }, (err, result) => {
-        if (err) return res.status(400).json(new Response(false, null, err));
+    try {
+        const body = _.pick(req.body, fillable);
+        
+        const result = await Category.findOne({ name: body.name, active: true })
+            .catch(err => { throw err; });
 
         if (result) return res.status(400).json(new Response(false, null, { message: msg.categoryExists }));
 
         const newCategory = new Category(body);
-    
-        newCategory.save((err, inserted) => {
-            if (err) return res.status(400).json(new Response(false, null, err));
-    
-            return res.status(201).json(new Response(true, inserted, null));
-        });
-    });
+
+        const inserted = await newCategory.save()
+            .catch(err => { throw err; });
+
+        return res.status(201).json(new Response(true, inserted, null));
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, new Err(err)));
+    }
 });
 
 app.put('/categories/:id', [
@@ -101,57 +111,58 @@ app.put('/categories/:id', [
     check('imageUrl')
         .if(check('imageUrl').notEmpty())
         .trim().isURL()
-], (req, res) => {
+], async (req, res) => {
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-    const body = _.pick(req.body, updatable);
-    body.updatedAt = new Date(Date.now());
+    try {
+        const body = _.pick(req.body, updatable);
+        body.updatedAt = new Date(Date.now());
 
-    Category.findOne({ name: body.name }, (err, result) => {
-        if (err) return res.status(400).json(new Response(false, null, err));
+        const result = await Category.findOne({ name: body.name, active: true })
+            .catch(err => { throw err; });
 
         if (result) return res.status(400).json(new Response(false, null, { message: msg.categoryExists }));
 
-        Category.updateOne(
-            { _id: req.params.id, active: true },
-            body,
-            { runValidators: true },
-            (err, updated) => {
-                if (err) return res.status(400).json(new Response(false, null, err));
-    
-                if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.categoryNotFound }));
-    
-                Category.findOne({ _id: req.params.id, active: true }, (err, modifiedCategory) => {
-                    if (err) return res.status(400).json(new Response(false, null, err));
+        const updated = await Category.updateOne({ _id: req.params.id, active: true }, body, { runValidators: true })
+            .catch(err => { throw err; });
 
-                    return res.json(new Response(true, modifiedCategory, null));
-                });
-            }
-        );
-    });
+        if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.categoryNotFound }));
+
+        const category = await Category.findOne({ _id: req.params.id, active: true })
+            .catch(err => { throw err; });
+
+        return res.json(new Response(true, category, null));
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, new Err(err)));
+    }
 });
 
 app.delete('/categories/:id', [
-    check('id')
-        .notEmpty().trim().isMongoId()
-], (req, res) => {
-    Category.updateOne(
-        { _id: req.params.id, active: true },
-        { active: false },
-        (err, deleted) => {
-            if (err) return res.status(400).json(new Response(false, null, err));
+    check('id').notEmpty().trim().isMongoId()
+], async (req, res) => {
+    const errors = validationResult(req);
 
-            if (deleted.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.categoryAlreadyDisabled }));
+    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-            Category.findOne({ _id: req.params.id, active: false }, (err, category) => {
-                if (err) return res.status(400).json(new Response(false, null, err));
+    try {
+        const category = await Category.findOne({ _id: req.params.id, active: true })
+            .catch(err => { throw err; });
 
-                return res.json(new Response(true, category, null));
-            });
-        }
-    );
+        if (!category) return res.status(404).json(new Response(false, null, { message: msg.categoryNotFound }));
+
+        const deleted = await Category.updateOne({ _id: req.params.id, active: true }, { active: false })
+            .catch(err => { throw err; });
+
+        if (!deleted.nModified) return res.status(400).json(new Response(false, null, { message: msg.categoryAlreadyDisabled }));
+
+        category.active = false;
+
+        return res.json(new Response(true, category, null));
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, new Err(err)));
+    }
 });
 
 module.exports = app;
