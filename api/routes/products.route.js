@@ -1,6 +1,7 @@
 const express = require('express');
 const _ = require('lodash');
 const Response = require('../models/Response.model');
+const Err = require('../models/Error.model');
 const { model: Product, fillable, updatable } = require('../models/Product.model');
 const { validateToken } = require('../middlewares/jwt-auth.middleware');
 const { storeExists } = require('../middlewares/stores.middleware');
@@ -11,32 +12,39 @@ const msg = require('../utils/messages');
 
 const app = express();
 
-app.get('/products', (req, res) => {
-    Product.find({ active: true }, (err, products) => {
-        if (err) return res.status(400).json(new Response(false, null, err));
+app.get('/products', async (req, res) => {
+    try {
+        const products = await Product.find({ active: true, enabled: true })
+            .populate(['store', 'category'])
+            .catch(err => { throw err; });
 
         if (!products.length) return res.status(404).json(new Response(false, null, { message: msg.productsNotFound }));
 
         return res.json(new Response(true, products, null));
-    });
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, new Err(err)));
+    }
 });
 
-app.get('/products/:id',
-    check('id')
-        .trim().notEmpty().isMongoId()
-    , (req, res) => {
-        const errors = validationResult(req);
+app.get('/products/:id', [
+    check('id').trim().notEmpty().isMongoId()
+], async (req, res) => {
+    const errors = validationResult(req);
 
-        if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-        Product.findOne({ _id: req.params.id, active: true }, (err, product) => {
-            if (err) return res.status(400).json(new Response(false, null, err));
+    try {
+        const product = await Product.findOne({ _id: req.params.id, active: true, enabled: true })
+            .populate(['store', 'category'])
+            .catch(err => { throw err; });
 
-            if (!product) return res.status(404).json(new Response(false, null, { message: msg.productNotFound }));
+        if (!product) return res.status(404).json(new Response(false, null, { message: msg.productNotFound }));
 
-            return res.json(new Response(true, product, null));
-        });
-    });
+        return res.json(new Response(true, product, null));
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, new Err(err)));
+    }
+});
 
 app.post('/products', [
     validateToken,
@@ -70,7 +78,7 @@ app.post('/products', [
         .trim(),
     check('category')
         .trim().notEmpty().isMongoId()
-], (req, res) => {
+], async (req, res) => {
     const errors = validationResult(req);
 
     if (!req.store) return res.status(401).json(new Response(false, null, { message: msg.userLacksStore }))
@@ -79,22 +87,25 @@ app.post('/products', [
 
     if (!req.store.enabled) return res.status(401).json(new Response(false, null, { message: msg.storeUnauthorized }));
 
-    const body = _.pick(req.body, fillable);
-    body.store = req.store._id;
+    try {
+        const body = _.pick(req.body, fillable);
+        body.store = req.store._id;
 
-    Product.findOne({ name: body.name, store: req.store._id }, (err, result) => {
-        if (err) return res.status(400).json(new Response(false, null, err));
+        const result = await Product.findOne({ name: body.name, store: req.store._id, active: true, enabled: true })
+            .populate(['store', 'category'])
+            .catch(err => { throw err; });
 
         if (result) return res.status(400).json(new Response(false, null, { message: msg.productExists }));
 
         const newProduct = new Product(body);
 
-        newProduct.save((err, product) => {
-            if (err) return res.status(400).json(new Response(false, null, err));
+        const product = await newProduct.save()
+            .catch(err => { throw err; });
 
-            return res.status(201).json(new Response(true, product, null));
-        });
-    });
+        return res.status(201).json(new Response(true, product, null));
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, new Err(err)));
+    }
 });
 
 app.put('/products/:id', [
@@ -132,7 +143,7 @@ app.put('/products/:id', [
     check('category')
         .if(check('category').notEmpty())
         .trim().isMongoId()
-], (req, res) => {
+], async (req, res) => {
     const errors = validationResult(req);
 
     if (!req.store) return res.status(401).json(new Response(false, null, { message: msg.userLacksStore }));
@@ -141,29 +152,28 @@ app.put('/products/:id', [
 
     if (!req.store.enabled) return res.status(401).json(new Response(false, null, { message: msg.storeUnauthorized }));
 
-    const body = _.pick(req.body, updatable);
+    try {
+        const body = _.pick(req.body, updatable);
 
-    Product.findOne({ name: body.name, store: req.store._id }, (err, result) => {
-        if (err) return res.status(400).json(new Response(false, null, err));
+        const result = await Product.findOne({ name: body.name, store: req.store._id, active: true, enabled: true })
+            .populate(['store', 'category'])
+            .catch(err => { throw err; });
 
         if (result) return res.status(400).json(new Response(false, null, { message: msg.productExists }));
 
-        Product.updateOne(
-            { _id: req.params.id, store: req.store._id, active: true },
-            body,
-            (err, updated) => {
-                if (err) return res.status(400).json(new Response(false, null, err));
+        const updated = await Product.updateOne({ _id: req.params.id, store: req.store._id, active: true, enabled: true }, body, { runValidators: true })
+            .catch(err => { throw err; });
 
-                if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.productUpdateFailed }));
+        if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.productUpdateFailed }));
 
-                Product.findOne({ _id: req.params.id, store: req.store._id }, (err, product) => {
-                    if (err) return res.status(400).json(new Response(false, null, err));
+        const product = await Product.findOne({ _id: req.params.id, store: req.store._id, active: true, enabled: true })
+            .populate(['store', 'category'])
+            .catch(err => { throw err; });
 
-                    return res.json(new Response(true, product, null));
-                });
-            }
-        );
-    });
+        return res.json(new Response(true, product, null));
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, new Err(err)));
+    }
 });
 
 app.delete('/products/:id', [
@@ -171,26 +181,29 @@ app.delete('/products/:id', [
     storeExists,
     check('id')
         .trim().notEmpty().isMongoId()
-], (req, res) => {
+], async (req, res) => {
     if (!req.store) return res.status(401).json(new Response(false, null, { message: msg.userLacksStore }));
 
     if (!req.store.enabled) return res.status(401).json(new Response(false, null, { message: msg.storeUnauthorized }));
 
-    Product.updateOne(
-        { _id: req.params.id, store: req.store._id, active: true },
-        { active: false },
-        (err, deleted) => {
-            if (err) return res.status(400).json(new Response(false, null, err));
+    try {
+        const product = await Product.findOne({ _id: req.params.id, store: req.store._id, active: true, enabled: true })
+            .populate(['store', 'category'])
+            .catch(err => { throw err; });
 
-            if (deleted.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.productAlreadyDisabled }));
+        if (!product) return res.status(404).json(new Response(false, null, { message: msg.productNotFound }));
 
-            Product.findOne({ _id: req.params.id, store: req.store._id, active: false }, (err, product) => {
-                if (err) return res.status(400).json(new Response(false, null, err));
+        const deleted = await Product.updateOne({ _id: req.params.id, store: req.store._id, active: true, enabled: true }, { active: false })
+            .catch(err => { throw err; });
 
-                return res.json(new Response(true, product, null));
-            });
-        }
-    );
+        if (!deleted.nModified) return res.status(400).json(new Response(false, null, { message: msg.productAlreadyDisabled }));
+
+        product.active = false;
+
+        return res.json(new Response(true, product, null));
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, new Err(err)));
+    }
 });
 
 module.exports = app;

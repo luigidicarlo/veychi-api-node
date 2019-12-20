@@ -15,7 +15,7 @@ const app = express();
 
 app.get('/categories', async (req, res) => {
     try {
-        const categories = await Category.find({ active: true })
+        const categories = await Category.find({ active: true }).populate('parent')
             .catch(err => { throw err; });
     
         if (!categories.length) return res.status(404).json(new Response(false, null, { message: msg.categoriesNotFound }));
@@ -34,7 +34,7 @@ app.get('/categories/:id', [
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
     try {
-        const subcategories = await Category.find({ parent: req.params.id, active: true })
+        const subcategories = await Category.find({ parent: req.params.id, active: true }).populate('parent')
             .catch(err => { throw err; });
 
         if (!subcategories.length) return res.status(404).json(new Response(false, null, { message: msg.categoriesNotFound }));
