@@ -14,7 +14,8 @@ app.get('/admin/users', [
     isAdmin
 ], async (req, res) => {
     try {
-        const users = await User.find();
+        const users = await User.find()
+            .catch(err => { throw err; });
 
         if (!users.length) throw new Error(msg.usersNotFound);
 
@@ -34,11 +35,16 @@ app.put('/admin/users/:id', [
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
     try {
-        const updated = await User.updateOne({ _id: req.params.id, active: false }, { active: true });
+        const updated = await User.updateOne({ _id: req.params.id, active: false }, { active: true })
+            .catch(err => { throw err; });
 
         if (!updated.nModified) return res.status(400).json(new Response(false, null, msg.userNotFound));
 
-        const user = await User.findOne({ _id: req.params.id, active: true });
+        await User.onEnabled(req.params.id)
+            .catch(err => { throw err; });
+
+        const user = await User.findOne({ _id: req.params.id, active: true })
+            .catch(err => { throw err; });
 
         return res.json(new Response(true, user, null));
     } catch (err) {
@@ -50,17 +56,22 @@ app.delete('/admin/users/:id', [
     validateToken,
     isAdmin,
     check('id').notEmpty().trim().isMongoId()
-], (req, res) => {
+], async (req, res) => {
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
     try {
-        const updated = User.updateOne({ _id: req.params.id, active: true }, { active: false });
+        const updated = await User.updateOne({ _id: req.params.id, active: true }, { active: false })
+            .catch(err => { throw err; });
 
         if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: userAlreadyDisabled }));
 
-        const user = User.findOne({ _id: req.params.id, active: false });
+        await User.onDisabled(req.params.id)
+            .catch(err => { throw err; });
+
+        const user = await User.findOne({ _id: req.params.id, active: false })
+            .catch(err => { throw err; });
 
         return res.json(new Response(true, user, null));
     } catch (err) {

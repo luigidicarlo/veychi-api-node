@@ -71,7 +71,6 @@ storeSchema.methods.onDisabled = async function(id) {
             .catch(err => { throw err; });
         await Coupon.updateMany({ store: id }, { enabled: false })
             .catch(err => { throw err; });
-        Promise.resolve(true);
     } catch (err) {
         throw err;
     }
@@ -83,7 +82,6 @@ storeSchema.methods.onEnabled = async function(id) {
             .catch(err => { throw err; });
         const enabledCoupons = await Coupon.updateMany({ store: id }, { enabled: true })
             .catch(err => { throw err; });
-        Promise.resolve(true);
     } catch (err) {
         throw err;
     }

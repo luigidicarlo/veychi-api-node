@@ -96,8 +96,6 @@ userSchema.methods.onDisabled = async function(id) {
         
         await Store.onDisabled(store._id)
             .catch(err => { throw err; });
-
-        Promise.resolve(true);
     } catch (err) {
         throw err;
     }
@@ -110,8 +108,6 @@ userSchema.methods.onEnabled = async function(id) {
 
         await Store.onEnabled(store._id)
             .catch(err => { throw err; });
-
-        Promise.resolve(true);
     } catch (err) {
         throw err;
     }

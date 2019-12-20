@@ -13,13 +13,12 @@ const app = express();
 
 app.get('/admin/stores', [validateToken, isAdmin], async (req, res) => {
     try {
-        const stores = await Store.find();
+        const stores = await Store.find()
+            .catch(err => { throw err; });
 
-        if (!stores.length) {
-            return res.status(404).json(new Response(false, null, { message: msg.storesNotFound }));
-        }
+        if (!stores.length) return res.status(404).json(new Response(false, null, { message: msg.storesNotFound }));
 
-        return res.json(stores);
+        return res.json(new Response(true, stores, null));
     } catch (err) {
         return res.status(400).json(new Response(false, null, new Err(err)));
     }
@@ -28,21 +27,23 @@ app.get('/admin/stores', [validateToken, isAdmin], async (req, res) => {
 app.put('/admin/stores/:id', [
     validateToken,
     isAdmin,
-    check('id')
-        .notEmpty().trim().isMongoId()
+    check('id').notEmpty().trim().isMongoId()
 ], async (req, res) => {
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
     try {
-        const updated = await Store.updateOne({ _id: req.params.id, active: true, enabled: false }, { enabled: true });
+        const updated = await Store.updateOne({ _id: req.params.id, active: true, enabled: false }, { enabled: true })
+            .catch(err => { throw err; });
 
-        if (!updated.nModified) {
-            return res.status(400).json(new Response(false, null, { message: msg.adminStoresAlreadyEnabled }));
-        }
+        if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.adminStoresAlreadyEnabled }));
 
-        const store = await Store.findOne({ _id: req.params.id, active: true, enabled: true });
+        await Store.onEnabled(req.params.id)
+            .catch(err => { throw err; });
+
+        const store = await Store.findOne({ _id: req.params.id, active: true, enabled: true })
+            .catch(err => { throw err; });
 
         return res.json(new Response(true, store, null));
     } catch (err) {
@@ -61,17 +62,16 @@ app.delete('/admin/stores/:id', [
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
     
     try {
-        const updated = await Store.updateOne({ _id: req.params.id, active: true, enabled: true }, { enabled: false });
+        const updated = await Store.updateOne({ _id: req.params.id, active: true, enabled: true }, { enabled: false })
+            .catch(err => { throw err; });
 
-        if (!updated.nModified) {
-            return res.status(400).json(new Response(false, null, { message: msg.adminStoresAlreadyDisabled }));
-        }
+        if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.adminStoresAlreadyDisabled }));
 
-        const store = await Store.findOne({ _id: req.params.id, active: true, enabled: false });
+        await Store.onDisabled(req.params.id)
+            .catch(err => { throw err; });
 
-        const updatedProducts = await Product.updateMany({ store: store._id }, { active: false });
-
-        const updatedCoupons = await Coupon.updateMany({ store: store._id }, { active: false });
+        const store = await Store.findOne({ _id: req.params.id, active: true, enabled: false })
+            .catch(err => { throw err; });
 
         return res.json(new Response(true, store, null));
     } catch (err) {
