@@ -1,6 +1,7 @@
 const express = require('express');
 const _ = require('lodash');
 const Response = require('../models/Response.model');
+const Err = require('../models/Error.model');
 const { validateToken } = require('../middlewares/jwt-auth.middleware');
 const { storeExists } = require('../middlewares/stores.middleware');
 const { model: Coupon, fillable, updatable } = require('../models/Coupon.model');
@@ -11,16 +12,20 @@ const msg = require('../utils/messages');
 
 const app = express();
 
-app.get('/coupons', [validateToken, storeExists], (req, res) => {
+app.get('/coupons', [validateToken, storeExists], async (req, res) => {
     if (!req.store) return res.status(401).json(new Response(false, null, { message: msg.userLacksStore }));
 
-    Coupon.find({ active: true }, (err, coupons) => {
-        if (err) return res.status(400).json(new Response(false, null, err));
-        
+    try {
+        const coupons = await Coupon.find({ active: true, enabled: true })
+            .populate('store')
+            .catch(err => { throw err; });
+
         if (!coupons.length) return res.status(404).json(new Response(false, null, { message: msg.couponsNotFound }));
 
         return res.json(new Response(true, coupons, null));
-    });
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, new Err(err)));
+    }
 });
 
 app.get('/coupons/:name', [
@@ -28,18 +33,22 @@ app.get('/coupons/:name', [
         .notEmpty().trim()
         .isLength({ min: constants.namesMinLength, max: constants.namesMaxLength })
         .matches(regex.couponNames)
-], (req, res) => {
+], async (req, res) => {
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
-    
-    Coupon.findOne({ name: req.params.name }, (err, coupon) => {
-        if (err) return res.status(500).json(new Response(false, null, err));
+
+    try {
+        const coupon = await Coupon.findOne({ name: req.params.name, active: true, enabled: true })
+            .populate('store')
+            .catch(err => { throw err; });
 
         if (!coupon) return res.status(404).json(new Response(false, null, { message: msg.couponNotFound }));
 
         return res.json(new Response(true, coupon, null));
-    });
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, new Err(err)));
+    }
 });
 
 app.post('/coupons', [
@@ -56,31 +65,33 @@ app.post('/coupons', [
     check('percentage')
         .if(check('percentage').notEmpty())
         .isBoolean()
-], (req, res) => {
+], async (req, res) => {
     if (!req.store) return res.status(401).json(new Response(false, null, { message: msg.userLacksStore }));
 
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-    const body = _.pick(req.body, fillable);
-    body.store = req.store._id;
+    try {
+        const body = _.pick(req.body, fillable);
+        body.store = req.store._id;
 
-    if (body.percentage && body.value > 100) body.value = 100;
+        if (body.percentage && body.value > 100) body.value = 100;
 
-    Coupon.findOne({ name: body.name, store: req.store._id }, (err, result) => {
-        if (err) return res.status(400).json(new Response(false, null, err));
+        const result = await Coupon.findOne({ name: body.name, store: req.store._id, enabled: true, active: true })
+            .catch(err => { throw err; });
 
         if (result) return res.status(400).json(new Response(false, null, { message: msg.couponExists }));
 
         const newCoupon = new Coupon(body);
 
-        newCoupon.save((err, coupon) => {
-            if (err) return res.status(400).json(new Response(false, null, err));
-    
-            return res.status(201).json(new Response(true, coupon, null));
-        }); 
-    });
+        const coupon = await newCoupon.save()
+            .catch(err => { throw err; });
+
+        return res.status(201).json(new Response(true, coupon, null));
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, new Err(err)));
+    }
 });
 
 app.put('/coupons/:id', [
@@ -101,38 +112,38 @@ app.put('/coupons/:id', [
     check('percentage')
         .if(check('percentage').notEmpty())
         .isBoolean()
-], (req, res) => {
+], async (req, res) => {
     if (!req.store) return res.status(401).json(new Response(false, null, { message: msg.userLacksStore }));
 
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-    const body = _.pick(req.body, updatable);
+    try {
+        const body = _.pick(req.body, updatable);
 
-    if (body.percentage && body.value > 100) body.value = 100;
+        if (body.percentage && body.value > 100) body.value = 100;
 
-    Coupon.findOne({ name: body.name, store: req.store._id, active: true }, (err, result) => {
-        if (err) return res.status(400).json(new Response(false, null, err));
+        const result = await Coupon.findOne({ name: body.name, store: req.store._id, active: true, enabled: true })
+            .catch(err => { throw err; });
 
         if (result) return res.status(400).json(new Response(false, null, { message: msg.couponExists }));
 
-        Coupon.updateOne(
-            { _id: req.params.id, store: req.store._id, active: true },
-            body,
-            (err, updated) => {
-                if (err) return res.status(400).json(new Response(false, null, err));
-    
-                if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.couponUpdateFailed }));
-    
-                Coupon.findOne({ _id: req.params.id, store: req.store._id, active: true }, (err, coupon) => {
-                    if (err) return res.status(400).json(new Response(false, null, err));
-    
-                    return res.json(new Response(true, coupon, null));
-                });
-            }
-        );
-    });
+        body.updatedAt = new Date(Date.now());
+
+        const updated = await Coupon.updateOne({ _id: req.params.id, store: req.store._id, active: true, enabled: true }, body, { runValidators: true })
+            .catch(err => { throw err; });
+
+        if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.couponUpdateFailed }));
+
+        const coupon = await Coupon.findOne({ _id: req.params.id, store: req.store._id, active: true, enabled: true })
+            .populate('store')
+            .catch(err => { throw err; });
+
+        return res.json(new Response(true, coupon, null));
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, new Err(err)));
+    }
 });
 
 app.delete('/coupons/:id', [
@@ -140,28 +151,31 @@ app.delete('/coupons/:id', [
     storeExists,
     check('id')
         .notEmpty().trim().isMongoId()
-], (req, res) => {
+], async (req, res) => {
     if (!req.store) return res.status(401).json(new Response(false, null, { message: msg.userLacksStore }));
 
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
-    Coupon.updateOne(
-        { _id: req.params.id, store: req.store._id, active: true },
-        { active: false },
-        (err, deleted) => {
-            if (err) return res.status(400).json(new Response(false, null, err));
+    try {
+        const coupon = await Coupon.findOne({ _id: req.params.id, store: req.store._id, active: true, enabled: true })
+            .populate('store')
+            .catch(err => { throw err; });
 
-            if (deleted.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.couponAlreadyDisabled }));
+        if (!coupon) return res.status(404).json(new Response(false, null, { message: msg.couponNotFound }));
 
-            Coupon.findOne({ _id: req.params.id, store: req.store._id, active: false }, (err, coupon) => {
-                if (err) return res.status(400).json(new Response(false, null, err));
+        const deleted = await Coupon.updateOne({ _id: req.params.id, store: req.store._id, active: true, enabled: true }, { active: false })
+            .catch(err => { throw err; });
 
-                return res.json(new Response(true, coupon, null));
-            });
-        }
-    );
+        if (!deleted.nModified) return res.status(400).json(new Response(false, null, { message: msg.couponAlreadyDisabled }));
+
+        coupon.active = false;
+
+        return res.json(new Response(true, coupon, null));
+    } catch (err) {
+        return res.status(400).json(new Response(false, null, new Err(err)));
+    }
 });
 
 module.exports = app;

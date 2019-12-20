@@ -5,5 +5,5 @@ module.exports = {
     rut: /^[0-9]+[-|‐]{1}[0-9kK]{1}$/,
     storeNames: /^[$0-9a-zA-ZñÑáéíóúÁÉÍÓÚüÜ\' ]+$/,
     productNames: /^[a-zA-Z0-9ñÑáéíóúÁÉÍÓÚ\'. -]+$/,
-    couponNames: /^[a-zA-Z0-9ñÑáéíóúÁÉÍÓÚ\'_ -]+$/
+    couponNames: /^[a-zA-Z0-9ñÑáéíóúÁÉÍÓÚ\'_-]+$/
 };
