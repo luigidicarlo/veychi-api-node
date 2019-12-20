@@ -2,9 +2,7 @@ const express = require('express');
 const { check, validationResult } = require('express-validator');
 const Response = require('../../models/Response.model');
 const Err = require('../../models/Error.model');
-const { model: Store } = require('../../models/Store.model');
-const { model: Product } = require('../../models/Product.model');
-const { model: Coupon } = require('../../models/Coupon.model');
+const { model: Store, onDisabled, onEnabled } = require('../../models/Store.model');
 const { validateToken } = require('../../middlewares/jwt-auth.middleware');
 const { isAdmin } = require('../../middlewares/auth.middleware');
 const msg = require('../../utils/messages');
@@ -39,7 +37,7 @@ app.put('/admin/stores/:id', [
 
         if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.adminStoresAlreadyEnabled }));
 
-        await Store.onEnabled(req.params.id)
+        await onEnabled(req.params.id)
             .catch(err => { throw err; });
 
         const store = await Store.findOne({ _id: req.params.id, active: true, enabled: true })
@@ -67,7 +65,7 @@ app.delete('/admin/stores/:id', [
 
         if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.adminStoresAlreadyDisabled }));
 
-        await Store.onDisabled(req.params.id)
+        await onDisabled(req.params.id)
             .catch(err => { throw err; });
 
         const store = await Store.findOne({ _id: req.params.id, active: true, enabled: false })

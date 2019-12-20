@@ -3,7 +3,7 @@ const uniqueValidator = require('mongoose-unique-validator');
 const regex = require('../utils/regex');
 const constants = require('../utils/constants');
 
-const { model: Store } = require('./Store.model');
+const { model: Store, onDisabled: onStoreDisabled, onEnabled: onStoreEnabled } = require('./Store.model');
 
 const Schema = mongoose.Schema;
 
@@ -83,31 +83,35 @@ userSchema.plugin(uniqueValidator, {
     message: '{PATH} is expected to be unique.'
 });
 
-userSchema.methods.toJSON = function() {
+userSchema.methods.toJSON = function () {
     const user = this.toObject();
     delete user.password;
     return user;
 };
 
-userSchema.methods.onDisabled = async function(id) {
+const onDisabled = async (id) => {
     try {
         const store = await Store.findOne({ user: id, active: true })
             .catch(err => { throw err; });
-        
-        await Store.onDisabled(store._id)
-            .catch(err => { throw err; });
+
+        if (store) {
+            await onStoreDisabled(store._id)
+                .catch(err => { throw err; });
+        }
     } catch (err) {
         throw err;
     }
 };
 
-userSchema.methods.onEnabled = async function(id) {
+const onEnabled = async (id) => {
     try {
         const store = await Store.findOne({ user: id, active: false })
             .catch(err => { throw err; });
 
-        await Store.onEnabled(store._id)
-            .catch(err => { throw err; });
+        if (store) {
+            await onStoreEnabled(store._id)
+                .catch(err => { throw err; });
+        }
     } catch (err) {
         throw err;
     }
@@ -117,5 +121,7 @@ module.exports = {
     schema: userSchema,
     model: mongoose.model('User', userSchema),
     fillable,
-    updatable
+    updatable,
+    onDisabled,
+    onEnabled
 };

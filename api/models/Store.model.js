@@ -65,7 +65,7 @@ const storeSchema = new Schema({
     }
 });
 
-storeSchema.methods.onDisabled = async function(id) {
+const onDisabled = async (id) => {
     try {
         await Product.updateMany({ store: id }, { enabled: false })
             .catch(err => { throw err; });
@@ -76,20 +76,24 @@ storeSchema.methods.onDisabled = async function(id) {
     }
 };
 
-storeSchema.methods.onEnabled = async function(id) {
+const onEnabled = async (id) => {
     try {
-        const enabledProducts = await Product.updateMany({ store: id }, { enabled: true })
-            .catch(err => { throw err; });
-        const enabledCoupons = await Coupon.updateMany({ store: id }, { enabled: true })
-            .catch(err => { throw err; });
+        if (id) {
+            await Product.updateMany({ store: id }, { enabled: true })
+                .catch(err => { throw err; });
+            await Coupon.updateMany({ store: id }, { enabled: true })
+                .catch(err => { throw err; });
+        }
     } catch (err) {
         throw err;
     }
-}
+};
 
 module.exports = {
     schema: storeSchema,
     model: mongoose.model('Store', storeSchema),
     fillable,
-    updatable
+    updatable,
+    onDisabled,
+    onEnabled
 };

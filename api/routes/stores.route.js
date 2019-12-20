@@ -1,6 +1,7 @@
 const express = require('express');
 const _ = require('lodash');
 const Response = require('../models/Response.model');
+const Err = require('../models/Error.model');
 const { check, validationResult } = require('express-validator');
 const { validateToken } = require('../middlewares/jwt-auth.middleware');
 const { storeExists } = require('../middlewares/stores.middleware');

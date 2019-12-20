@@ -4,7 +4,7 @@ const Response = require('../../models/Response.model');
 const Err = require('../../models/Error.model');
 const { validateToken } = require('../../middlewares/jwt-auth.middleware');
 const { isAdmin } = require('../../middlewares/auth.middleware');
-const { model: User } = require('../../models/User.model');
+const { model: User, onDisabled, onEnabled } = require('../../models/User.model');
 const msg = require('../../utils/messages');
 
 const app = express();
@@ -40,7 +40,7 @@ app.put('/admin/users/:id', [
 
         if (!updated.nModified) return res.status(400).json(new Response(false, null, msg.userNotFound));
 
-        await User.onEnabled(req.params.id)
+        await onEnabled(req.params.id)
             .catch(err => { throw err; });
 
         const user = await User.findOne({ _id: req.params.id, active: true })
@@ -65,9 +65,9 @@ app.delete('/admin/users/:id', [
         const updated = await User.updateOne({ _id: req.params.id, active: true }, { active: false })
             .catch(err => { throw err; });
 
-        if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: userAlreadyDisabled }));
+        if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.userAlreadyDisabled }));
 
-        await User.onDisabled(req.params.id)
+        await onDisabled(req.params.id)
             .catch(err => { throw err; });
 
         const user = await User.findOne({ _id: req.params.id, active: false })

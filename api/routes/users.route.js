@@ -2,7 +2,7 @@ const express = require('express');
 const _ = require('lodash');
 const bcrypt = require('bcryptjs');
 const { check, validationResult } = require('express-validator');
-const { model: User, fillable, updatable } = require('../models/User.model');
+const { model: User, fillable, updatable, onDisabled } = require('../models/User.model');
 const Response = require('../models/Response.model');
 const Err = require('../models/Error.model');
 const { validateToken } = require('../middlewares/jwt-auth.middleware');
@@ -48,7 +48,7 @@ app.post('/users', [
 
         const user = new User(body);
 
-        const result = await User.findOne({ $or: [{username: user.username}, {email: user.email}], active: true })
+        const result = await User.findOne({ $or: [{ username: user.username }, { email: user.email }], active: true })
             .catch(err => { throw err; });
 
         if (result) return res.status(400).json(new Response(false, null, { message: msg.userExists }));
@@ -111,7 +111,7 @@ app.put('/users/password', [
 
     try {
         const password = bcrypt.hashSync(req.body.password, bcrypt.genSaltSync());
-        
+
         const updated = await User.updateOne({ _id: req.user.id, active: true }, { password })
             .catch(err => { throw err; });
 
@@ -133,10 +133,10 @@ app.delete('/users', validateToken, async (req, res) => {
 
         if (!disabled.nModified) return res.status(400).json(new Response(false, null, { message: msg.userAlreadyDisabled }));
 
-        await User.onDisabled(req.user.id)
+        const user = await User.findOne({ _id: req.user.id, active: false })
             .catch(err => { throw err; });
 
-        const user = User.findOne({ _id: req.user.id, active: false })
+        await onDisabled(user._id)
             .catch(err => { throw err; });
 
         return res.json(new Response(true, user, null));
