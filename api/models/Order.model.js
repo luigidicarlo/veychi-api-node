@@ -1,8 +1,5 @@
 const mongoose = require('mongoose');
 const uniqueValidator = require('mongoose-unique-validator');
-const { schema: Product } = require('./Product.model');
-const { schema: Coupon } = require('./Coupon.model');
-const { schema: User } = require('./User.model');
 const constants = require('../utils/constants');
 
 const Schema = mongoose.Schema;
@@ -19,11 +16,13 @@ const updatable = ['status'];
 
 const orderSchema = new Schema({
     products: {
-        type: [Product],
-        required: true
+        type: [Schema.Types.ObjectId],
+        required: true,
+        ref: 'Product'
     },
     coupons: {
-        type: [Coupon],
+        type: [Schema.Types.ObjectId],
+        ref: 'Coupon',
         default: null
     },
     subtotal: {
@@ -37,8 +36,9 @@ const orderSchema = new Schema({
         max: constants.maxPrice * constants.maxPrice
     },
     user: {
-        type: User,
-        required: true
+        type: Schema.Types.ObjectId,
+        required: true,
+        ref: 'User'
     },
     status: {
         type: String,
@@ -54,6 +54,10 @@ const orderSchema = new Schema({
         default: null
     },
     active: {
+        type: Boolean,
+        default: true
+    },
+    enabled: {
         type: Boolean,
         default: true
     }
