@@ -29,9 +29,9 @@ app.get('/orders', [validateToken], async (req, res) => {
 app.post('/orders', [
     validateToken,
     check('products').notEmpty().isArray(),
-    check('products.*._id').notEmpty().trim().isMongoId(),
+    check('products.*').notEmpty().trim().isMongoId(),
     check('coupons').isArray(),
-    check('coupons.*._id').notEmpty().trim().isMongoId()
+    check('coupons.*').notEmpty().trim().isMongoId()
 ], async (req, res) => {
     const errors = validationResult(req);
 
@@ -42,19 +42,20 @@ app.post('/orders', [
 
         if (!body.products.length) return res.status(400).json(new Response(false, null, { message: msg.ordersEmpty }));
 
-        const subtotal = getSubtotal(body.products);
-        const total = applyCoupons(body.products, body.coupons, subtotal);
-
-        body.subtotal = subtotal;
-        body.total = total;
         body.user = req.user;
 
-        const order = new Order(body);
+        const newOrder = new Order(body);
 
-        const newOrder = await order.save()
+        const inserted = await newOrder.save()
             .catch(err => { throw err; });
 
-        return res.status(201).json(new Response(true, newOrder, null));
+        const order = await Order.findById(inserted._id)
+            .populate(['products', 'coupons', 'user'])
+            .catch(err => { throw err; });
+
+        // TODO call functions to get subtotal and total
+
+        return res.status(201).json(new Response(true, order, null));
     } catch (err) {
         return res.status(400).json(new Response(false, null, new Err(err)));
     }

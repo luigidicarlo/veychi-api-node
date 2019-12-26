@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const uniqueValidator = require('mongoose-unique-validator');
 const constants = require('../utils/constants');
 
 const Schema = mongoose.Schema;
@@ -15,25 +14,31 @@ const fillable = [
 const updatable = ['status'];
 
 const orderSchema = new Schema({
-    products: {
-        type: [Schema.Types.ObjectId],
-        required: true,
-        ref: 'Product'
-    },
-    coupons: {
-        type: [Schema.Types.ObjectId],
-        ref: 'Coupon',
-        default: null
-    },
+    products: [
+        {
+            type: Schema.Types.ObjectId,
+            ref: 'Product',
+            required: true
+        }
+    ],
+    coupons: [
+        {
+            type: Schema.Types.ObjectId,
+            ref: 'Coupon',
+            default: null
+        }
+    ],
     subtotal: {
         type: Number,
-        min: constants.minPrice,
-        max: constants.maxPrice * constants.maxPrice
+        min: constants.minDiscount,
+        max: constants.maxPrice * constants.maxPrice,
+        default: 0
     },
     total: {
         type: Number,
         min: constants.minDiscount,
-        max: constants.maxPrice * constants.maxPrice
+        max: constants.maxPrice * constants.maxPrice,
+        default: 0
     },
     user: {
         type: Schema.Types.ObjectId,
@@ -62,8 +67,6 @@ const orderSchema = new Schema({
         default: true
     }
 });
-
-orderSchema.plugin(uniqueValidator, { message: '{PATH} is expected to be unique.' });
 
 module.exports = {
     schema: orderSchema,

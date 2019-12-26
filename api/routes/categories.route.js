@@ -53,7 +53,7 @@ app.get('/categories/:id/products', [
     if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
 
     try {
-        const products = await Product.find({ category: req.params.id, active: true })
+        const products = await Product.find({ category: req.params.id, active: true, enabled: true })
             .catch(err => { throw err; });
 
         if (!products.length) return res.status(404).json(new Response(false, null, { message: msg.productsNotFound }));
