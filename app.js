@@ -1,8 +1,7 @@
 const express = require('express');
+const fileUpload = require('express-fileupload');
 const bodyParser = require('body-parser');
 const morgan = require('morgan');
-const http = require('http');
-const socketIO = require('socket.io');
 const mongoose = require('mongoose');
 const { allowCors } = require('./api/middlewares/web-security.middleware');
 
@@ -38,18 +37,17 @@ app.use(bodyParser.json())
 // CORS Policy
 app.use(allowCors);
 
+// Allow file uploading
+app.use(fileUpload({ useTempFiles: true }));
+
 // Routes
 app.use(require('./api/routes/index'));
-
-// socket.io initialization
-const server = http.createServer(app);
-module.exports.io = socketIO(server);
 
 // Set the application port
 const port = process.env.PORT || 3535;
 
 // Serve the application
-server.listen(port, (err) => {
+app.listen(port, (err) => {
     if (err) throw new Error(err);
     console.log(`Listening on port ${port}`);
 });

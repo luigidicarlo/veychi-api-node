@@ -31,5 +31,6 @@ app.use(require('./coupons.route'));
 app.use(require('./orders.route'));
 app.use(require('./admin/stores.route'));
 app.use(require('./admin/users.route'));
+app.use(require('./media.route'));
 
 module.exports = app;
