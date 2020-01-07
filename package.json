@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon app",
-    "migrate": "node api/database/migrations"
+    "start": "node app"
   },
   "author": "",
   "license": "ISC",
@@ -21,6 +21,7 @@
     "lodash": "^4.17.15",
     "mongoose": "^5.8.1",
     "mongoose-unique-validator": "^2.0.3",
+    "morgan": "^1.9.1",
     "validator": "^12.1.0"
   },
   "devDependencies": {
