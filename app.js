@@ -12,7 +12,12 @@ require('./api/config/app.config');
 const app = express();
 
 // Sets the connection with the database
-const connectionString = `mongodb://${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
+const connectionString = '';
+if (process.env.NODE_ENV === 'dev') {
+    connectionString = `mongodb://${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
+} else {
+    connectionString = `${process.env.DB_PROD_URL}`;
+}
 const options = {
     useNewUrlParser: true,
     useUnifiedTopology: true,
