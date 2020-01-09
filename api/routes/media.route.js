@@ -3,12 +3,13 @@ const axios = require("axios");
 const fs = require("fs");
 const Response = require("../models/Response.model");
 const Err = require("../models/Error.model");
+const {validateToken} = require('../middlewares/jwt-auth.middleware');
 
 const app = express();
 
 require("../config/app.config");
 
-app.post("/media", async (req, res) => {
+app.post("/media", validateToken, async (req, res) => {
   const files = req.files.images;
   const authUri = process.env.WP_AUTH;
   const mediaUri = process.env.WP_MEDIA;
