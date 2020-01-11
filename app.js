@@ -1,6 +1,4 @@
 const express = require('express');
-const fileUpload = require('express-fileupload');
-const bodyParser = require('body-parser');
 const morgan = require('morgan');
 const mongoose = require('mongoose');
 const { allowCors } = require('./api/middlewares/web-security.middleware');
@@ -38,13 +36,11 @@ mongoose.connect(
 app.use(morgan('dev'));
 
 // Parse body requests
-app.use(bodyParser.json())
+app.use(express.json())
+app.use(express.urlencoded({ extended: true }));
 
 // CORS Policy
 app.use(allowCors);
-
-// Allow file uploading
-app.use(fileUpload({ useTempFiles: true }));
 
 // Routes
 app.use(require('./api/routes/index'));

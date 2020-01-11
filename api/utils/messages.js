@@ -47,6 +47,7 @@ module.exports = {
 
     // Media
     noMediaUploaded: 'No se especificó ningún archivo para cargar.',
+    unauthorizedMedia: 'No tiene permisos para gestionar el recurso solicitado.',
 
     // Admin Stores
     adminStoresAlreadyEnabled: 'La tienda ya estaba activada o no se encontró.',
