@@ -11,10 +11,10 @@ process.env.DB_PROD_URL = process.env.DB_PROD_URL || 'mongodb://localhost:27017/
 
 process.env.AUTH_HEADER = process.env.AUTH_HEADER || 'Authorization';
 
-process.env.WP_MEDIA = process.env.WP_MEDIA || 'wp_media';
-process.env.WP_AUTH = process.env.WP_AUTH || 'wp_auth';
-process.env.WP_USER = process.env.WP_USER || 'wp_user';
-process.env.WP_PASS = process.env.WP_PASS || 'wp_pass';
+process.env.WP_MEDIA = process.env.WP_MEDIA || 'http://localhost/veychi-imagenes/wp-json/wp/v2/media';
+process.env.WP_AUTH = process.env.WP_AUTH || 'http://localhost/veychi-imagenes/wp-json/jwt-auth/v1/token';
+process.env.WP_USER = process.env.WP_USER || 'luigidicarlo';
+process.env.WP_PASS = process.env.WP_PASS || 'Test_123456_258';
 
 process.env.JWT_KEY = process.env.JWT_KEY || 'secret-debug';
 process.env.JWT_EXP = process.env.JWT_EXP || '3 days';

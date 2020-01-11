@@ -45,6 +45,9 @@ module.exports = {
     ordersUpdateFailed: 'No se encontró la orden o falló la actualización.',
     orderAlreadyDisabled: 'No se encontró la orden o ya está desactivada.',
 
+    // Media
+    noMediaUploaded: 'No se especificó ningún archivo para cargar.',
+
     // Admin Stores
     adminStoresAlreadyEnabled: 'La tienda ya estaba activada o no se encontró.',
     adminStoresAlreadyDisabled: 'La tienda ya estada desactivada o no se encontró.',

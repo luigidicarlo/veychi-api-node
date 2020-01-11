@@ -4,6 +4,7 @@ const fs = require("fs");
 const Response = require("../models/Response.model");
 const Err = require("../models/Error.model");
 const {validateToken} = require('../middlewares/jwt-auth.middleware');
+const msg = require('../utils/messages');
 
 const app = express();
 
@@ -14,6 +15,8 @@ app.post("/media", validateToken, async (req, res) => {
   const authUri = process.env.WP_AUTH;
   const mediaUri = process.env.WP_MEDIA;
   let uploaded = null;
+
+  if (!files.length) return res.status(400).json(new Response(false, null, msg.noMediaUploaded));
 
   try {
     const authenticated = await axios.post(authUri, {
