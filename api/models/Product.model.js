@@ -12,7 +12,8 @@ const fillable = [
 const updatable = [
     'name', 'description', 'shortDescription',
     'price', 'discount', 'images',
-    'tags', 'category'
+    'tags', 'category', 'sku',
+    'featured'
 ];
 
 const productSchema = new Schema({
@@ -45,6 +46,12 @@ const productSchema = new Schema({
         min: constants.minDiscount,
         max: constants.maxDiscount
     },
+    sku: {
+        type: String,
+        default: null,
+        min: constants.namesMinLength,
+        max: constants.namesMaxLength
+    },
     images: {
         type: [String],
         default: null
@@ -64,6 +71,14 @@ const productSchema = new Schema({
     enabled: {
         type: Boolean,
         default: true
+    },
+    timesSold: {
+        type: Number,
+        default: 0
+    },
+    featured: {
+        type: Boolean,
+        default: false
     },
     createdAt: {
         type: Date,
