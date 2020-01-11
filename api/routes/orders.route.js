@@ -4,9 +4,11 @@ const Response = require('../models/Response.model');
 const Err = require('../models/Error.model');
 const { check, validationResult } = require('express-validator');
 const { model: Order, fillable, updatable } = require('../models/Order.model');
+const { model: Product } = require('../models/Product.model');
+const { model: Coupon } = require('../models/Coupon.model');
 const { validateToken } = require('../middlewares/jwt-auth.middleware');
 const { isAdmin } = require('../middlewares/auth.middleware');
-const { getSubtotal, applyCoupons } = require('../utils/functions');
+const { getTotal, getSubtotal, applyCoupons } = require('../utils/functions');
 const statuses = require('../utils/order-statuses');
 const msg = require('../utils/messages');
 
@@ -39,10 +41,38 @@ app.post('/orders', [
 
     try {
         const body = _.pick(req.body, fillable);
+        let total = 0;
+        let subtotal = 0;
+        let respObj = {};
 
         if (!body.products.length) return res.status(400).json(new Response(false, null, { message: msg.ordersEmpty }));
 
+        const productsPromises = body.products.map(product => {
+            return Product.findOne({ _id: product, active: true, enabled: true });
+        });
+
+        const products = await Promise.all(productsPromises)
+            .catch(err => { throw err; });
+
+        subtotal = getSubtotal(products);
+
+        if (!body.coupons.length) {
+            total = getTotal(products);
+        } else {
+            const couponsPromises = body.coupons.map(coupon => {
+                return Coupon.findOne({ _id: coupon, active: true, enabled: true });
+            });
+
+            const coupons = await Promise.all(couponsPromises)
+                .catch(err => { throw err; });
+
+            respObj = applyCoupons(coupons, products);
+            total = respObj.total;
+        }
+
         body.user = req.user;
+        body.subtotal = subtotal;
+        body.total = total;
 
         const newOrder = new Order(body);
 
@@ -52,8 +82,6 @@ app.post('/orders', [
         const order = await Order.findById(inserted._id)
             .populate(['products', 'coupons', 'user'])
             .catch(err => { throw err; });
-
-        // TODO call functions to get subtotal and total
 
         return res.status(201).json(new Response(true, order, null));
     } catch (err) {

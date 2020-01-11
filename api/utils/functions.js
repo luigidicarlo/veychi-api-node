@@ -1,39 +1,59 @@
-const { model: Product } = require('../models/Product.model');
 const { model: Coupon } = require('../models/Coupon.model');
 
-const getSubtotal = async (products = []) => {
+const getTotal = (products = []) => {
+    if (!products.length) return 0;
+
     let subtotal = 0;
-};
 
-const applyCoupons = async (coupons = [], products = [], subtotal) => {
-    if (!coupons.length) return subtotal;
-
-    coupons.forEach(async coupon => {
-        try {
-            const coup = await Coupon.findById(coupon)
-                .catch(err => { throw err; });
-
-            const now = new Date(Date.now());
-
-            if (now <= coup.expiration) {
-                if (coup.percentage) {
-                    subtotal *= 1 - (coup.value / 100);
-                } else {
-                    const diff = subtotal - coup.value;
-                    subtotal = diff <= 0 ? 0 : diff;
-                }
-            }
-        } catch (err) {
-            throw err;
-        }
+    products.forEach(product => {
+        subtotal += product.price * (1 - (product.discount / 100));
     });
 
-    let total = getSubtotal(products);
+    return subtotal;
+};
 
-    return total;
+const getSubtotal = (products = []) => {
+    if (!products.length) return 0;
+
+    let subtotal = 0;
+
+    products.forEach(product => {
+        subtotal += product.price;
+    });
+
+    return subtotal;
+};
+
+const applyCoupons = (coupons = [], products = []) => {
+    let total = 0;
+
+    if (!coupons.length) return {
+        products,
+        total: getTotal(products)
+    };
+
+    coupons.forEach(coupon => {
+        products.forEach(product => {
+            if (String(coupon.store) === String(product.store)) {
+                if (coupon.percentage) {
+                    product.price = product.price * (1 - (product.discount / 100) - (coupon.value / 100))
+                } else {
+                    const diff = (product.price * (1 - (product.discount / 100))) - coupon.value;
+                    product.price = diff <= 0 ? 0 : diff;
+                }
+            }
+            total += product.price;
+        });
+    });
+
+    return {
+        products,
+        total
+    };
 };
 
 module.exports = {
+    getTotal,
     getSubtotal,
     applyCoupons
 };
