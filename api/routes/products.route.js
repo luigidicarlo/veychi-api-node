@@ -14,9 +14,21 @@ const app = express();
 
 app.get('/products', async (req, res) => {
     try {
-        const products = await Product.find({ active: true, enabled: true })
-            .populate(['store', 'category'])
-            .catch(err => { throw err; });
+        let products = [];
+
+        if (req.query.featured) {
+            products = await Product.find({ active: true, enabled: true, featured: true })
+                .populate(['store', 'category'])
+                .catch(err => { throw err; });
+        } else if (req.query.sale) {
+            products = await Product.find({ active: true, enabled: true, discount: { $gt: 0 } })
+                .populate(['store', 'category'])
+                .catch(err => { throw err; });
+        } else {
+            products = await Product.find({ active: true, enabled: true })
+                .populate(['store', 'category'])
+                .catch(err => { throw err; });
+        }
 
         if (!products.length) return res.status(404).json(new Response(false, null, { message: msg.productsNotFound }));
 
