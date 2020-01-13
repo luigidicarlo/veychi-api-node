@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const uniqueValidator = require('mongoose-unique-validator');
 const constants = require('../utils/constants');
 const regex = require('../utils/regex');
 
@@ -57,10 +56,6 @@ const couponSchema = new Schema({
         type: Boolean,
         default: true
     }
-});
-
-couponSchema.plugin(uniqueValidator, {
-    message: '{PATH} is expected to be unique.'
 });
 
 module.exports = {
