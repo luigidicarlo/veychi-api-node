@@ -1,6 +1,5 @@
 const express = require("express");
 const fs = require("fs");
-const path = require("path");
 const Response = require("../models/Response.model");
 const { model: Media } = require("../models/Media.model");
 const Err = require("../models/Error.model");
@@ -27,7 +26,7 @@ const fileFilter = (req, file, cb) => {
   const acceptedMimetypes = ["image/jpeg", "image/png"];
 
   if (acceptedMimetypes.indexOf(file.mimetype) === -1) {
-    cb(null, false);
+    cb(new Error("Extensión de imagen no soportada"), false);
   } else {
     cb(null, true);
   }
