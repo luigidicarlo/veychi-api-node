@@ -68,14 +68,16 @@ app.delete("/media/:id", validateToken, async (req, res) => {
       throw err;
     });
 
-    fs.exists(image.url, exists => {
+    const imagePath = `${process.env.APP_HOST}/${image.url}`;
+
+    fs.exists(imagePath, exists => {
       if (!exists) {
         return res
           .status(400)
           .json(new Response(false, null, "No se encontró el archivo"));
       }
 
-      fs.unlink(image.url, async () => {
+      fs.unlink(imagePath, async () => {
         await Media.findByIdAndDelete(image._id).catch(err => {
           throw err;
         });
