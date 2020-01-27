@@ -14,7 +14,7 @@ require("../config/app.config");
 // Multer configuration
 const storage = multer.diskStorage({
   destination: function(req, file, cb) {
-    cb(null, "./uploads/");
+    cb(null, `${process.env.APP_HOST}/uploads/`);
   },
   filename: function(req, file, cb) {
     const date = new Date().toISOString().replace(/:/g, "-");
