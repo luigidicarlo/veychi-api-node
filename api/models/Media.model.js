@@ -10,10 +10,6 @@ const mediaSchema = new Schema({
   url: {
     type: String,
     required: true
-  },
-  wpId: {
-    type: Number,
-    required: true
   }
 });
 

@@ -16,9 +16,9 @@ require('../config/app.config');
 const app = express();
 
 app.get('/users', validateToken, (req, res) => {
-    if (!req.user) return res.status(404).json(new Response(false, null, { message: msg.userNotFound }));
+    if (!req.user) return res.status(404).json(new Response(false, null, new Err(null, msg.userNotFound)));
 
-    if (!req.user.active) return res.status(401).json(new Response(false, null, { message: msg.userNotFound }));
+    if (!req.user.active) return res.status(401).json(new Response(false, null, new Err(null, msg.userNotFound)));
 
     return res.json(new Response(true, req.user, null));
 });
@@ -118,7 +118,7 @@ app.put('/users/password', [
         if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.userNotFound }));
 
         const user = await User.findOne({ _id: req.user.id, active: true })
-            .catch(err => { throw err; });;
+            .catch(err => { throw err; });
 
         return res.json(new Response(true, user, null));
     } catch (err) {

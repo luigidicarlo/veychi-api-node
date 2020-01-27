@@ -42,6 +42,9 @@ app.use(express.urlencoded({ extended: true }));
 // CORS Policy
 app.use(allowCors);
 
+// Make uploads folder public
+app.use('/uploads', express.static("uploads"));
+
 // Routes
 app.use(require('./api/routes/index'));
 

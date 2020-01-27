@@ -1,140 +1,89 @@
 const express = require("express");
-const axios = require("axios");
 const fs = require("fs");
+const path = require("path");
 const Response = require("../models/Response.model");
 const { model: Media } = require("../models/Media.model");
 const Err = require("../models/Error.model");
 const { validateToken } = require("../middlewares/jwt-auth.middleware");
 const msg = require("../utils/messages");
-
-const fileUpload = require("express-fileupload");
+const multer = require("multer");
 
 const app = express();
 
-// Allow file uploading
-app.use(fileUpload({ useTempFiles: true }));
-
 require("../config/app.config");
 
-app.post("/media", validateToken, async (req, res) => {
-  const authUri = process.env.WP_AUTH;
-  const mediaUri = process.env.WP_MEDIA;
-  let uploaded = null;
-
-  if (!req.files)
-    return res.status(400).json(new Response(false, null, msg.noMediaUploaded));
-
-  const files = req.files.images;
-
-  try {
-    const authenticated = await axios({
-      method: "post",
-      url: authUri,
-      headers: {
-        "Content-Type": "application/json"
-      },
-      data: {
-        username: process.env.WP_USER,
-        password: process.env.WP_PASS
-      }
-    })
-    .catch(err => { throw err; });
-
-    if (files.length) {
-      const promises = files.map(file => {
-        return axios({
-          method: "post",
-          url: mediaUri,
-          headers: {
-            "content-type": `${file.mimetype}`,
-            "content-disposition": `attachment;filename="${file.name}"`,
-            Authorization: `Bearer ${authenticated.data.token}`
-          },
-          data: fs.createReadStream(file.tempFilePath)
-        });
-      });
-
-      const uploaded = await Promise.all(promises).catch(err => {
-        throw err;
-      });
-
-      const savedPromises = uploaded.map(uploadResponse => {
-        const aux = new Media({
-          user: req.user._id,
-          url: uploadResponse.data.media_details.sizes.full.source_url,
-          wpId: uploadResponse.data.id
-        });
-        return aux.save();
-      });
-
-      const resp = await Promise.all(savedPromises).catch(err => {
-        throw err;
-      });
-
-      return res.status(201).json(new Response(true, resp, null));
-    } else {
-      uploaded = await axios({
-        method: "post",
-        url: mediaUri,
-        headers: {
-          "content-type": `${files.mimetype}`,
-          "content-disposition": `attachment;filename="${files.name}"`,
-          Authorization: `Bearer ${authenticated.data.token}`
-        },
-        data: fs.createReadStream(files.tempFilePath)
-      }).catch(err => {
-        throw err;
-      });
-
-      const media = new Media({
-        user: req.user._id,
-        url: uploaded.data.media_details.sizes.full.source_url,
-        wpId: uploaded.data.id
-      });
-
-      return res.status(201).json(new Response(true, media, null));
-    }
-  } catch (err) {
-    return res.status(400).json(new Response(false, null, new Err(err)));
+// Multer configuration
+const storage = multer.diskStorage({
+  destination: function(req, file, cb) {
+    cb(null, "./uploads/");
+  },
+  filename: function(req, file, cb) {
+    const date = new Date().toISOString().replace(/:/g, "-");
+    cb(null, `${date}-${file.originalname}`);
   }
 });
 
-app.delete('/media/:id', validateToken, async (req, res) => {
-  const wpId = Number(req.params.id);
-  const authUri = process.env.WP_AUTH;
-  const mediaUri = process.env.WP_MEDIA;
+const fileFilter = (req, file, cb) => {
+  const acceptedMimetypes = ["image/jpeg", "image/png"];
+
+  if (acceptedMimetypes.indexOf(file.mimetype) === -1) {
+    cb(null, false);
+  } else {
+    cb(null, true);
+  }
+};
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 1024 * 1024 * 1
+  },
+  fileFilter
+});
+
+app.post(
+  "/media/single",
+  [upload.single("image"), validateToken],
+  async (req, res) => {
+    try {
+      const image = new Media({
+        user: req.user._id,
+        url: req.file.path
+      });
+
+      const saved = await image.save();
+
+      return res.status(201).json(new Response(true, saved.populate(), null));
+    } catch (err) {
+      return res.status(400).json(new Response(false, null, new Err(err)));
+    }
+  }
+);
+
+app.delete("/media/:id", validateToken, async (req, res) => {
+  const id = req.params.id;
+  const userId = req.user._id;
 
   try {
-    const media = await Media.findOne({ wpId });
+    const image = await Media.findOne({ _id: id, user: userId }).catch(err => {
+      throw err;
+    });
 
-    if (String(media.user) !== String(req.user._id)) return res.status(401).json(new Response(false, null, msg.unauthorizedMedia));
-  
-    const authenticated = await axios({
-      method: "post",
-      url: authUri,
-      headers: {
-        "Content-Type": "application/json"
-      },
-      data: {
-        username: process.env.WP_USER,
-        password: process.env.WP_PASS
+    fs.exists(image.url, exists => {
+      if (!exists) {
+        return res
+          .status(400)
+          .json(new Response(false, null, "No se encontró el archivo"));
       }
-    })
-    .catch(err => { throw err; });
-  
-    const wpDelete = await axios({
-      url: `${mediaUri}/${wpId}?force=true`,
-      method: 'delete',
-      headers: {
-        Authorization: `Bearer ${authenticated.data.token}`
-      }
-    })
-    .catch(err => { throw err; });
 
-    await Media.deleteOne({ wpId })
-      .catch(err => { throw err; });
+      fs.unlink(image.url, async () => {
+        await Media.findByIdAndDelete(image._id).catch(err => {
+          throw err;
+        });
 
-    if (wpDelete.data.deleted) return res.json(new Response(true, media, null));
+        return res.json(new Response(true, image, null));
+      });
+    });
   } catch (err) {
     return res.status(400).json(new Response(false, null, new Err(err)));
   }

@@ -3,9 +3,10 @@ const _ = require('lodash');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const {check, validationResult} = require('express-validator');
 const Response = require('../models/Response.model');
 const { model: User } = require('../models/User.model');
-const {check, validationResult} = require('express-validator');
+const { validateToken } = require('../middlewares/jwt-auth.middleware');
 const constants = require('../utils/constants');
 const msg = require('../utils/messages');
 
@@ -34,7 +35,7 @@ app.post('/login', [
         (err, user) => {
             if (err) return res.status(400).json(new Response(false, null, err));
 
-            if (!user) return res.status(404).json(new Response(false, null, { message: msg.invalidLogin }));
+            if (!user) return res.status(400).json(new Response(false, null, { message: msg.invalidLogin }));
 
             if (!bcrypt.compareSync(loginInfo.password, user.password)) {
                 return res.status(401).json(new Response(false, null, { message: msg.invalidLogin }));
