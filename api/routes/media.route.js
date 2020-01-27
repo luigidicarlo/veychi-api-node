@@ -1,5 +1,6 @@
 const express = require("express");
 const fs = require("fs");
+const path = require("path");
 const Response = require("../models/Response.model");
 const { model: Media } = require("../models/Media.model");
 const Err = require("../models/Error.model");
@@ -14,7 +15,7 @@ require("../config/app.config");
 // Multer configuration
 const storage = multer.diskStorage({
   destination: function(req, file, cb) {
-    cb(null, `${process.env.APP_HOST}/uploads/`);
+    cb(null, "./uploads");
   },
   filename: function(req, file, cb) {
     const date = new Date().toISOString().replace(/:/g, "-");
