@@ -120,10 +120,10 @@ app.put('/categories/:id', [
         const body = _.pick(req.body, updatable);
         body.updatedAt = new Date(Date.now());
 
-        const result = await Category.findOne({ name: body.name, active: true })
+        const result = await Category.find({ name: body.name, active: true })
             .catch(err => { throw err; });
 
-        if (result) return res.status(400).json(new Response(false, null, { message: msg.categoryExists }));
+        if (result.length > 1) return res.status(400).json(new Response(false, null, { message: msg.categoryExists }));
 
         const updated = await Category.updateOne({ _id: req.params.id, active: true }, body, { runValidators: true })
             .catch(err => { throw err; });
