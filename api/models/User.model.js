@@ -14,7 +14,7 @@ const fillable = [
 ];
 
 const updatable = [
-    'fname', 'lname', 'email', 'imageUrl'
+    'fname', 'lname', 'email', 'imageUrl', 'role'
 ]
 
 const userSchema = new Schema({
