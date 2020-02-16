@@ -16,9 +16,9 @@ require('../config/app.config');
 const app = express();
 
 app.get('/users', validateToken, (req, res) => {
-    if (!req.user) return res.status(404).json(new Response(false, null, new Err(null, msg.userNotFound)));
+    if (!req.user) return res.json(new Response(false, null, new Err(null, msg.userNotFound)));
 
-    if (!req.user.active) return res.status(401).json(new Response(false, null, new Err(null, msg.userNotFound)));
+    if (!req.user.active) return res.json(new Response(false, null, new Err(null, msg.userNotFound)));
 
     return res.json(new Response(true, req.user, null));
 });
@@ -39,7 +39,7 @@ app.post('/users', [
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const body = _.pick(req.body, fillable);
@@ -51,14 +51,14 @@ app.post('/users', [
         const result = await User.findOne({ $or: [{ username: user.username }, { email: user.email }], active: true })
             .catch(err => { throw err; });
 
-        if (result) return res.status(400).json(new Response(false, null, { message: msg.userExists }));
+        if (result) return res.json(new Response(false, null, { message: msg.userExists }));
 
         const savedUser = await user.save()
             .catch(err => { throw err; });
 
-        return res.status(201).json(new Response(true, savedUser, null));
+        return res.json(new Response(true, savedUser, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -75,7 +75,7 @@ app.put('/users', [
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const body = _.pick(req.body, updatable);
@@ -84,19 +84,19 @@ app.put('/users', [
         const result = await User.findOne({ email: body.email })
             .catch(err => { throw err; });
 
-        if (result) return res.status(400).json(new Response(false, null, { message: msg.emailTaken }));
+        if (result) return res.json(new Response(false, null, { message: msg.emailTaken }));
 
         const updated = await User.updateOne({ _id: req.user.id, active: true }, body, { runValidators: true })
             .catch(err => { throw err; });
 
-        if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.userNotFound }));
+        if (!updated.nModified) return res.json(new Response(false, null, { message: msg.userNotFound }));
 
         const user = await User.findOne({ _id: req.user.id, active: true })
             .catch(err => { throw err; });
 
         return res.json(new Response(true, user, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -107,7 +107,7 @@ app.put('/users/password', [
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const password = bcrypt.hashSync(req.body.password, bcrypt.genSaltSync());
@@ -115,14 +115,14 @@ app.put('/users/password', [
         const updated = await User.updateOne({ _id: req.user.id, active: true }, { password })
             .catch(err => { throw err; });
 
-        if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.userNotFound }));
+        if (!updated.nModified) return res.json(new Response(false, null, { message: msg.userNotFound }));
 
         const user = await User.findOne({ _id: req.user.id, active: true })
             .catch(err => { throw err; });
 
         return res.json(new Response(true, user, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -131,12 +131,12 @@ app.delete('/users', validateToken, async (req, res) => {
         const user = await User.findOne({ _id: req.user.id, active: true })
             .catch(err => { throw err; });
 
-        if (!user) return res.status(404).json(new Response(false, null, { message: msg.userNotFound }));
+        if (!user) return res.json(new Response(false, null, { message: msg.userNotFound }));
 
         const disabled = await User.updateOne({ _id: user._id, active: true }, { active: false })
             .catch(err => { throw err; });
 
-        if (!disabled.nModified) return res.status(400).json(new Response(false, null, { message: msg.userAlreadyDisabled }));
+        if (!disabled.nModified) return res.json(new Response(false, null, { message: msg.userAlreadyDisabled }));
 
         await onDisabled(user._id)
             .catch(err => { throw err; });
@@ -145,7 +145,7 @@ app.delete('/users', validateToken, async (req, res) => {
 
         return res.json(new Response(true, user, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 

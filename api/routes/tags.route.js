@@ -11,7 +11,7 @@ app.get('/tags', async (req, res) => {
         const products = await Product.find({ active: true })
             .catch(err => { throw err; });
 
-        if (!products) return res.status(404).json(new Response(false, null, { message: msg.productsNotFound }));
+        if (!products) return res.json(new Response(false, null, { message: msg.productsNotFound }));
 
         let tags = [];
 
@@ -25,7 +25,7 @@ app.get('/tags', async (req, res) => {
 
         return res.json(new Response(true, tags, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 

@@ -72,5 +72,6 @@ module.exports = {
     schema: orderSchema,
     model: mongoose.model('Order', orderSchema),
     fillable,
-    updatable
+    updatable,
+    statuses
 };

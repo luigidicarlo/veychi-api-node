@@ -21,7 +21,7 @@ app.get('/admin/users', [
 
         return res.json(new Response(true, users, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -32,13 +32,13 @@ app.put('/admin/users/:id', [
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const updated = await User.updateOne({ _id: req.params.id, active: false }, { active: true })
             .catch(err => { throw err; });
 
-        if (!updated.nModified) return res.status(400).json(new Response(false, null, msg.userNotFound));
+        if (!updated.nModified) return res.json(new Response(false, null, msg.userNotFound));
 
         await onEnabled(req.params.id)
             .catch(err => { throw err; });
@@ -48,7 +48,7 @@ app.put('/admin/users/:id', [
 
         return res.json(new Response(true, user, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -59,13 +59,13 @@ app.delete('/admin/users/:id', [
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const updated = await User.updateOne({ _id: req.params.id, active: true }, { active: false })
             .catch(err => { throw err; });
 
-        if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.userAlreadyDisabled }));
+        if (!updated.nModified) return res.json(new Response(false, null, { message: msg.userAlreadyDisabled }));
 
         await onDisabled(req.params.id)
             .catch(err => { throw err; });
@@ -75,7 +75,7 @@ app.delete('/admin/users/:id', [
 
         return res.json(new Response(true, user, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 

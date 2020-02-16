@@ -13,7 +13,7 @@ const msg = require('../utils/messages');
 const app = express();
 
 app.get('/stores', [validateToken, storeExists], (req, res) => {
-    if (!req.store) return res.status(404).json(new Response(false, null, { message: msg.userLacksStore }));
+    if (!req.store) return res.json(new Response(false, null, { message: msg.userLacksStore }));
 
     return res.json(new Response(true, req.store, null));
 });
@@ -40,9 +40,9 @@ app.post('/stores', [
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (req.store) return res.status(400).json(new Response(false, null, { message: msg.storeUserAlreadyExists }));
+    if (req.store) return res.json(new Response(false, null, { message: msg.storeUserAlreadyExists }));
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const body = _.pick(req.body, fillable);
@@ -51,16 +51,16 @@ app.post('/stores', [
         const result = await Store.findOne({ $or: [{ name: body.name }, { rut: body.rut }] })
             .catch(err => { throw err; });
 
-        if (result) return res.status(400).json(new Response(false, null, { message: msg.storeExists }));
+        if (result) return res.json(new Response(false, null, { message: msg.storeExists }));
 
         const newStore = new Store(body);
 
         const store = await newStore.save()
             .catch(err => { throw err; });
 
-        return res.status(201).json(new Response(true, store, null));
+        return res.json(new Response(true, store, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -84,11 +84,11 @@ app.put('/stores', [
         .if(check('activity').notEmpty())
         .trim().isLength({ min: constants.namesMinLength, max: constants.namesMaxLength })
 ], async (req, res) => {
-    if (!req.store) return res.status(404).json(new Response(false, null, { message: msg.userLacksStore }));
+    if (!req.store) return res.json(new Response(false, null, { message: msg.userLacksStore }));
 
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const body = _.pick(req.body, updatable);
@@ -96,35 +96,35 @@ app.put('/stores', [
         const result = await Store.findOne({ $or: [{ name: body.name }, { rut: body.rut }], active: true })
             .catch(err => { throw err; });
 
-        if (result) return res.status(400).json(new Response(false, null, { message: storeExists }));
+        if (result) return res.json(new Response(false, null, { message: storeExists }));
 
         const updated = await Store.updateOne({ _id: req.store._id, active: true }, body, { runValidators: true })
             .catch(err => { throw err; });
 
-        if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.storeUpdateFailed }));
+        if (!updated.nModified) return res.json(new Response(false, null, { message: msg.storeUpdateFailed }));
 
         const store = await Store.findOne({ _id: req.store._id, active: true })
             .catch(err => { throw err; });
 
         return res.json(new Response(true, store, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
 app.delete('/stores', [validateToken, storeExists], async (req, res) => {
-    if (!req.store) return res.status(404).json(new Response(false, null, { message: msg.userLacksStore }));
+    if (!req.store) return res.json(new Response(false, null, { message: msg.userLacksStore }));
 
     console.log(req.store._id);
 
     try {
         const store = await Store.findOne({ _id: req.store._id, active: true });
 
-        if (!store) return res.status(404).json(new Response(false, null, { message: msg.storeNotFound }));
+        if (!store) return res.json(new Response(false, null, { message: msg.storeNotFound }));
 
         const deleted = await Store.updateOne({ _id: req.store._id, active: true }, { active: false });
 
-        if (!deleted.nModified) return res.status(400).json(new Response(false, null, { message: msg.storeAlreadyDisabled }));
+        if (!deleted.nModified) return res.json(new Response(false, null, { message: msg.storeAlreadyDisabled }));
 
         await onDisabled(store._id)
             .catch(err => { throw err; });
@@ -133,7 +133,7 @@ app.delete('/stores', [validateToken, storeExists], async (req, res) => {
 
         return res.json(new Response(true, store, null));
     } catch (error) {
-        return res.status(400).json(new Response(false, null, error));
+        return res.json(new Response(false, null, error));
     }
 });
 

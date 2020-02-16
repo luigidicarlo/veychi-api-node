@@ -53,9 +53,9 @@ app.post(
 
       const saved = await image.save();
 
-      return res.status(201).json(new Response(true, saved.populate(), null));
+      return res.json(new Response(true, saved.populate(), null));
     } catch (err) {
-      return res.status(400).json(new Response(false, null, new Err(err)));
+      return res.json(new Response(false, null, new Err(err)));
     }
   }
 );
@@ -73,9 +73,7 @@ app.delete("/media/:id", validateToken, async (req, res) => {
 
     fs.exists(imagePath, exists => {
       if (!exists) {
-        return res
-          .status(400)
-          .json(new Response(false, null, "No se encontró el archivo"));
+        return res.json(new Response(false, null, "No se encontró el archivo"));
       }
 
       fs.unlink(imagePath, async () => {
@@ -87,7 +85,7 @@ app.delete("/media/:id", validateToken, async (req, res) => {
       });
     });
   } catch (err) {
-    return res.status(400).json(new Response(false, null, new Err(err)));
+    return res.json(new Response(false, null, new Err(err)));
   }
 });
 

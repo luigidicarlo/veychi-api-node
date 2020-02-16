@@ -18,11 +18,11 @@ app.get('/categories', async (req, res) => {
         const categories = await Category.find({ active: true }).populate('parent')
             .catch(err => { throw err; });
     
-        if (!categories.length) return res.status(404).json(new Response(false, null, { message: msg.categoriesNotFound }));
+        if (!categories.length) return res.json(new Response(false, null, { message: msg.categoriesNotFound }));
     
         return res.json(new Response(true, categories, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -31,17 +31,17 @@ app.get('/categories/:id', [
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const subcategories = await Category.find({ parent: req.params.id, active: true }).populate('parent')
             .catch(err => { throw err; });
 
-        if (!subcategories.length) return res.status(404).json(new Response(false, null, { message: msg.categoriesNotFound }));
+        if (!subcategories.length) return res.json(new Response(false, null, { message: msg.categoriesNotFound }));
 
         return res.json(new Response(true, subcategories, null));
     } catch(err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -50,17 +50,17 @@ app.get('/categories/:id/products', [
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const products = await Product.find({ category: req.params.id, active: true, enabled: true })
             .catch(err => { throw err; });
 
-        if (!products.length) return res.status(404).json(new Response(false, null, { message: msg.productsNotFound }));
+        if (!products.length) return res.json(new Response(false, null, { message: msg.productsNotFound }));
 
         return res.json(new Response(true, products, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -78,7 +78,7 @@ app.post('/categories', [
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const body = _.pick(req.body, fillable);
@@ -86,16 +86,16 @@ app.post('/categories', [
         const result = await Category.findOne({ name: body.name, active: true })
             .catch(err => { throw err; });
 
-        if (result) return res.status(400).json(new Response(false, null, { message: msg.categoryExists }));
+        if (result) return res.json(new Response(false, null, { message: msg.categoryExists }));
 
         const newCategory = new Category(body);
 
         const inserted = await newCategory.save()
             .catch(err => { throw err; });
 
-        return res.status(201).json(new Response(true, inserted, null));
+        return res.json(new Response(true, inserted, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -114,7 +114,7 @@ app.put('/categories/:id', [
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const body = _.pick(req.body, updatable);
@@ -123,45 +123,50 @@ app.put('/categories/:id', [
         const result = await Category.find({ name: body.name, active: true })
             .catch(err => { throw err; });
 
-        if (result.length > 1) return res.status(400).json(new Response(false, null, { message: msg.categoryExists }));
+        if (result.length > 1) return res.json(new Response(false, null, { message: msg.categoryExists }));
 
         const updated = await Category.updateOne({ _id: req.params.id, active: true }, body, { runValidators: true })
             .catch(err => { throw err; });
 
-        if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.categoryNotFound }));
+        if (!updated.nModified) return res.json(new Response(false, null, { message: msg.categoryNotFound }));
 
         const category = await Category.findOne({ _id: req.params.id, active: true })
             .catch(err => { throw err; });
 
         return res.json(new Response(true, category, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
 app.delete('/categories/:id', [
+    validateToken,
+    isAdmin,
     check('id').notEmpty().trim().isMongoId()
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const category = await Category.findOne({ _id: req.params.id, active: true })
             .catch(err => { throw err; });
 
-        if (!category) return res.status(404).json(new Response(false, null, { message: msg.categoryNotFound }));
+        if (!category) return res.json(new Response(false, null, { message: msg.categoryNotFound }));
 
         const deleted = await Category.updateOne({ _id: req.params.id, active: true }, { active: false })
             .catch(err => { throw err; });
 
-        if (!deleted.nModified) return res.status(400).json(new Response(false, null, { message: msg.categoryAlreadyDisabled }));
+        await Category.update({ parent: req.params.id, active: true }, { active: false })
+            .catch(err => { throw err });
+
+        if (!deleted.nModified) return res.json(new Response(false, null, { message: msg.categoryAlreadyDisabled }));
 
         category.active = false;
 
         return res.json(new Response(true, category, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 

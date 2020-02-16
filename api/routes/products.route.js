@@ -30,11 +30,11 @@ app.get('/products', async (req, res) => {
                 .catch(err => { throw err; });
         }
 
-        if (!products.length) return res.status(404).json(new Response(false, null, { message: msg.productsNotFound }));
+        if (!products.length) return res.json(new Response(false, null, { message: msg.productsNotFound }));
 
         return res.json(new Response(true, products, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -43,18 +43,18 @@ app.get('/products/:id', [
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const product = await Product.findOne({ _id: req.params.id, active: true, enabled: true })
             .populate(['store', 'category'])
             .catch(err => { throw err; });
 
-        if (!product) return res.status(404).json(new Response(false, null, { message: msg.productNotFound }));
+        if (!product) return res.json(new Response(false, null, { message: msg.productNotFound }));
 
         return res.json(new Response(true, product, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -93,11 +93,11 @@ app.post('/products', [
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (!req.store) return res.status(401).json(new Response(false, null, { message: msg.userLacksStore }))
+    if (!req.store) return res.json(new Response(false, null, { message: msg.userLacksStore }))
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
-    if (!req.store.enabled) return res.status(401).json(new Response(false, null, { message: msg.storeUnauthorized }));
+    if (!req.store.enabled) return res.json(new Response(false, null, { message: msg.storeUnauthorized }));
 
     try {
         const body = _.pick(req.body, fillable);
@@ -107,16 +107,16 @@ app.post('/products', [
             .populate(['store', 'category'])
             .catch(err => { throw err; });
 
-        if (result) return res.status(400).json(new Response(false, null, { message: msg.productExists }));
+        if (result) return res.json(new Response(false, null, { message: msg.productExists }));
 
         const newProduct = new Product(body);
 
         const product = await newProduct.save()
             .catch(err => { throw err; });
 
-        return res.status(201).json(new Response(true, product, null));
+        return res.json(new Response(true, product, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -158,11 +158,11 @@ app.put('/products/:id', [
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (!req.store) return res.status(401).json(new Response(false, null, { message: msg.userLacksStore }));
+    if (!req.store) return res.json(new Response(false, null, { message: msg.userLacksStore }));
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
-    if (!req.store.enabled) return res.status(401).json(new Response(false, null, { message: msg.storeUnauthorized }));
+    if (!req.store.enabled) return res.json(new Response(false, null, { message: msg.storeUnauthorized }));
 
     try {
         const body = _.pick(req.body, updatable);
@@ -171,12 +171,12 @@ app.put('/products/:id', [
             .populate(['store', 'category'])
             .catch(err => { throw err; });
 
-        if (result) return res.status(400).json(new Response(false, null, { message: msg.productExists }));
+        if (result) return res.json(new Response(false, null, { message: msg.productExists }));
 
         const updated = await Product.updateOne({ _id: req.params.id, store: req.store._id, active: true, enabled: true }, body, { runValidators: true })
             .catch(err => { throw err; });
 
-        if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.productUpdateFailed }));
+        if (!updated.nModified) return res.json(new Response(false, null, { message: msg.productUpdateFailed }));
 
         const product = await Product.findOne({ _id: req.params.id, store: req.store._id, active: true, enabled: true })
             .populate(['store', 'category'])
@@ -184,7 +184,7 @@ app.put('/products/:id', [
 
         return res.json(new Response(true, product, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -194,27 +194,27 @@ app.delete('/products/:id', [
     check('id')
         .trim().notEmpty().isMongoId()
 ], async (req, res) => {
-    if (!req.store) return res.status(401).json(new Response(false, null, { message: msg.userLacksStore }));
+    if (!req.store) return res.json(new Response(false, null, { message: msg.userLacksStore }));
 
-    if (!req.store.enabled) return res.status(401).json(new Response(false, null, { message: msg.storeUnauthorized }));
+    if (!req.store.enabled) return res.json(new Response(false, null, { message: msg.storeUnauthorized }));
 
     try {
         const product = await Product.findOne({ _id: req.params.id, store: req.store._id, active: true, enabled: true })
             .populate(['store', 'category'])
             .catch(err => { throw err; });
 
-        if (!product) return res.status(404).json(new Response(false, null, { message: msg.productNotFound }));
+        if (!product) return res.json(new Response(false, null, { message: msg.productNotFound }));
 
         const deleted = await Product.updateOne({ _id: req.params.id, store: req.store._id, active: true, enabled: true }, { active: false })
             .catch(err => { throw err; });
 
-        if (!deleted.nModified) return res.status(400).json(new Response(false, null, { message: msg.productAlreadyDisabled }));
+        if (!deleted.nModified) return res.json(new Response(false, null, { message: msg.productAlreadyDisabled }));
 
         product.active = false;
 
         return res.json(new Response(true, product, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 

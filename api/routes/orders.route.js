@@ -20,11 +20,11 @@ app.get('/orders', [validateToken], async (req, res) => {
             .populate(['user', 'products', 'coupons'])
             .catch(err => { throw err; });
 
-        if (!orders.length) return res.status(404).json(new Response(false, null, { message: msg.ordersNotFound }));
+        if (!orders.length) return res.json(new Response(false, null, { message: msg.ordersNotFound }));
 
         return res.json(new Response(true, orders, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -37,7 +37,7 @@ app.post('/orders', [
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const body = _.pick(req.body, fillable);
@@ -45,7 +45,7 @@ app.post('/orders', [
         let subtotal = 0;
         let respObj = {};
 
-        if (!body.products.length) return res.status(400).json(new Response(false, null, { message: msg.ordersEmpty }));
+        if (!body.products.length) return res.json(new Response(false, null, { message: msg.ordersEmpty }));
 
         const productsPromises = body.products.map(product => {
             return Product.findOne({ _id: product, active: true, enabled: true });
@@ -83,9 +83,9 @@ app.post('/orders', [
             .populate(['products', 'coupons', 'user'])
             .catch(err => { throw err; });
 
-        return res.status(201).json(new Response(true, order, null));
+        return res.json(new Response(true, order, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -98,7 +98,7 @@ app.put('/orders/:id', [
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const body = _.pick(req.body, updatable);
@@ -106,7 +106,7 @@ app.put('/orders/:id', [
         const updated = await Order.updateOne({ _id: req.params.id, user: req.user.id, active: true, enabled: true }, body, { runValidators: true })
             .catch(err => { throw err; });
 
-        if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.ordersUpdateFailed }));
+        if (!updated.nModified) return res.json(new Response(false, null, { message: msg.ordersUpdateFailed }));
 
         const order = await Order.findOne({ _id: req.params.id, user: req.user.id, active: true, enabled: true })
             .populate(['user', 'products', 'coupons'])
@@ -114,7 +114,7 @@ app.put('/orders/:id', [
 
         return res.json(new Response(true, order, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -127,7 +127,7 @@ app.delete('/orders/:id', [
             .populate(['user', 'products', 'coupons'])
             .catch(err => { throw err; });
 
-        if (!order) return res.status(404).json(new Response(false, null, { message: msg.orderNotFound }));
+        if (!order) return res.json(new Response(false, null, { message: msg.orderNotFound }));
 
         let modifiedStatus = { active: false };
 
@@ -136,13 +136,13 @@ app.delete('/orders/:id', [
         const deleted = await Order.updateOne({ _id: req.params.id, user: req.user.id, active: true, enabled: true }, modifiedStatus, { runValidators: true })
             .catch(err => { throw err; });
 
-        if (!deleted.nModified) return res.status(400).json(new Response(false, null, { message: msg.orderAlreadyDisabled }));
+        if (!deleted.nModified) return res.json(new Response(false, null, { message: msg.orderAlreadyDisabled }));
 
         order.active = false;
 
         return res.json(new Response(true, order, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 

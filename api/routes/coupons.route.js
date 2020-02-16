@@ -13,18 +13,18 @@ const msg = require('../utils/messages');
 const app = express();
 
 app.get('/coupons', [validateToken, storeExists], async (req, res) => {
-    if (!req.store) return res.status(401).json(new Response(false, null, { message: msg.userLacksStore }));
+    if (!req.store) return res.json(new Response(false, null, { message: msg.userLacksStore }));
 
     try {
         const coupons = await Coupon.find({ active: true, enabled: true })
             .populate('store')
             .catch(err => { throw err; });
 
-        if (!coupons.length) return res.status(404).json(new Response(false, null, { message: msg.couponsNotFound }));
+        if (!coupons.length) return res.json(new Response(false, null, { message: msg.couponsNotFound }));
 
         return res.json(new Response(true, coupons, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -36,18 +36,18 @@ app.get('/coupons/:name', [
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const coupon = await Coupon.findOne({ name: req.params.name, active: true, enabled: true })
             .populate('store')
             .catch(err => { throw err; });
 
-        if (!coupon) return res.status(404).json(new Response(false, null, { message: msg.couponNotFound }));
+        if (!coupon) return res.json(new Response(false, null, { message: msg.couponNotFound }));
 
         return res.json(new Response(true, coupon, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -66,11 +66,11 @@ app.post('/coupons', [
         .if(check('percentage').notEmpty())
         .isBoolean()
 ], async (req, res) => {
-    if (!req.store) return res.status(401).json(new Response(false, null, { message: msg.userLacksStore }));
+    if (!req.store) return res.json(new Response(false, null, { message: msg.userLacksStore }));
 
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const body = _.pick(req.body, fillable);
@@ -81,16 +81,16 @@ app.post('/coupons', [
         const result = await Coupon.findOne({ name: body.name, store: req.store._id, enabled: true, active: true })
             .catch(err => { throw err; });
 
-        if (result) return res.status(400).json(new Response(false, null, { message: msg.couponExists }));
+        if (result) return res.json(new Response(false, null, { message: msg.couponExists }));
 
         const newCoupon = new Coupon(body);
 
         const coupon = await newCoupon.save()
             .catch(err => { throw err; });
 
-        return res.status(201).json(new Response(true, coupon, null));
+        return res.json(new Response(true, coupon, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -113,11 +113,11 @@ app.put('/coupons/:id', [
         .if(check('percentage').notEmpty())
         .isBoolean()
 ], async (req, res) => {
-    if (!req.store) return res.status(401).json(new Response(false, null, { message: msg.userLacksStore }));
+    if (!req.store) return res.json(new Response(false, null, { message: msg.userLacksStore }));
 
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const body = _.pick(req.body, updatable);
@@ -127,14 +127,14 @@ app.put('/coupons/:id', [
         const result = await Coupon.findOne({ name: body.name, store: req.store._id, active: true, enabled: true })
             .catch(err => { throw err; });
 
-        if (result) return res.status(400).json(new Response(false, null, { message: msg.couponExists }));
+        if (result) return res.json(new Response(false, null, { message: msg.couponExists }));
 
         body.updatedAt = new Date(Date.now());
 
         const updated = await Coupon.updateOne({ _id: req.params.id, store: req.store._id, active: true, enabled: true }, body, { runValidators: true })
             .catch(err => { throw err; });
 
-        if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.couponUpdateFailed }));
+        if (!updated.nModified) return res.json(new Response(false, null, { message: msg.couponUpdateFailed }));
 
         const coupon = await Coupon.findOne({ _id: req.params.id, store: req.store._id, active: true, enabled: true })
             .populate('store')
@@ -142,7 +142,7 @@ app.put('/coupons/:id', [
 
         return res.json(new Response(true, coupon, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -152,29 +152,29 @@ app.delete('/coupons/:id', [
     check('id')
         .notEmpty().trim().isMongoId()
 ], async (req, res) => {
-    if (!req.store) return res.status(401).json(new Response(false, null, { message: msg.userLacksStore }));
+    if (!req.store) return res.json(new Response(false, null, { message: msg.userLacksStore }));
 
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const coupon = await Coupon.findOne({ _id: req.params.id, store: req.store._id, active: true, enabled: true })
             .populate('store')
             .catch(err => { throw err; });
 
-        if (!coupon) return res.status(404).json(new Response(false, null, { message: msg.couponNotFound }));
+        if (!coupon) return res.json(new Response(false, null, { message: msg.couponNotFound }));
 
         const deleted = await Coupon.updateOne({ _id: req.params.id, store: req.store._id, active: true, enabled: true }, { active: false })
             .catch(err => { throw err; });
 
-        if (!deleted.nModified) return res.status(400).json(new Response(false, null, { message: msg.couponAlreadyDisabled }));
+        if (!deleted.nModified) return res.json(new Response(false, null, { message: msg.couponAlreadyDisabled }));
 
         coupon.active = false;
 
         return res.json(new Response(true, coupon, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 

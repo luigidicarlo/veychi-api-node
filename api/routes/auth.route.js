@@ -20,7 +20,7 @@ app.post('/login', [
 ], (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     const loginInfo = _.pick(req.body, ['username', 'password']);
 
@@ -33,12 +33,12 @@ app.post('/login', [
             active: true
         },
         (err, user) => {
-            if (err) return res.status(400).json(new Response(false, null, err));
+            if (err) return res.json(new Response(false, null, err));
 
-            if (!user) return res.status(400).json(new Response(false, null, { message: msg.invalidLogin }));
+            if (!user) return res.json(new Response(false, null, { message: msg.invalidLogin }));
 
             if (!bcrypt.compareSync(loginInfo.password, user.password)) {
-                return res.status(401).json(new Response(false, null, { message: msg.invalidLogin }));
+                return res.json(new Response(false, null, { message: msg.invalidLogin }));
             }
 
             const token = jwt.sign(
@@ -59,7 +59,7 @@ app.post('/password/token', [
 ], (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     const body = _.pick(req.body, ['username']);
 
@@ -72,9 +72,9 @@ app.post('/password/token', [
             active: true
         },
         (err, user) => {
-            if (err) return res.status(400).json(new Response(false, null, err));
+            if (err) return res.json(new Response(false, null, err));
 
-            if (!user) return res.status(404).json(new Response(false, null, { message: msg.userNotFound }));
+            if (!user) return res.json(new Response(false, null, { message: msg.userNotFound }));
 
             const token = crypto.randomBytes(16).toString('hex');
 
@@ -86,9 +86,9 @@ app.post('/password/token', [
                 },
                 { runValidators: true },
                 (err, updated) => {
-                    if (err) return res.status(400).json(new Response(false, null, err));
+                    if (err) return res.json(new Response(false, null, err));
 
-                    if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.userNotFound }));
+                    if (updated.nModified <= 0) return res.json(new Response(false, null, { message: msg.userNotFound }));
 
                     return res.json(new Response(true, token, null));
                 }
@@ -105,16 +105,16 @@ app.post('/password/recovery-change', [
 ], (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     const body = _.pick(req.body, ['password', 'token']);
 
     User.findOne({ recoverToken: body.token, active: true }, (err, user) => {
-        if (err) return res.status(400).json(new Response(false, null, err));
+        if (err) return res.json(new Response(false, null, err));
 
-        if (!user) return res.status(404).json(new Response(false, null, { message: msg.invalidRecoverToken }));
+        if (!user) return res.json(new Response(false, null, { message: msg.invalidRecoverToken }));
 
-        if (Date.now() > user.recoverTokenExp) return res.status(401).json(new Response(false, null, { message: msg.invalidRecoverToken }));
+        if (Date.now() > user.recoverTokenExp) return res.json(new Response(false, null, { message: msg.invalidRecoverToken }));
 
         User.updateOne(
             { _id: user._id, active: true },
@@ -125,12 +125,12 @@ app.post('/password/recovery-change', [
             },
             { runValidators: true },
             (err, updated) => {
-                if (err) return res.status(400).json(new Response(false, null, err));
+                if (err) return res.json(new Response(false, null, err));
 
-                if (updated.nModified <= 0) return res.status(400).json(new Response(false, null, { message: msg.invalidRecoverToken }));
+                if (updated.nModified <= 0) return res.json(new Response(false, null, { message: msg.invalidRecoverToken }));
 
                 User.findOne({ _id: user._id, active: true }, (err, updatedUser) => {
-                    if (err) return res.status(400).json(new Response(false, null, err));
+                    if (err) return res.json(new Response(false, null, err));
 
                     return res.json(new Response(true, updatedUser, null));
                 });

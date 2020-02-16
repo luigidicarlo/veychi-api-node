@@ -14,11 +14,25 @@ app.get('/admin/stores', [validateToken, isAdmin], async (req, res) => {
         const stores = await Store.find()
             .catch(err => { throw err; });
 
-        if (!stores.length) return res.status(404).json(new Response(false, null, { message: msg.storesNotFound }));
+        if (!stores.length) return res.json(new Response(false, null, { message: msg.storesNotFound }));
 
         return res.json(new Response(true, stores, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
+    }
+});
+
+app.get('/admin/stores/:id', [validateToken, isAdmin], async (req, res) => {
+    const id = +req.params.id;
+
+    try {
+        const store = await Store.findById(id).populate().catch(err => { throw err; });
+
+        if (!store) { return res.json(new Response(false, null, msg.storeNotFound)); }
+
+        return res.json(new Response(true, store, null));
+    } catch (err) {
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -29,13 +43,13 @@ app.put('/admin/stores/:id', [
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
 
     try {
         const updated = await Store.updateOne({ _id: req.params.id, active: true, enabled: false }, { enabled: true })
             .catch(err => { throw err; });
 
-        if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.adminStoresAlreadyEnabled }));
+        if (!updated.nModified) return res.json(new Response(false, null, { message: msg.adminStoresAlreadyEnabled }));
 
         await onEnabled(req.params.id)
             .catch(err => { throw err; });
@@ -45,7 +59,7 @@ app.put('/admin/stores/:id', [
 
         return res.json(new Response(true, store, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 
@@ -57,13 +71,13 @@ app.delete('/admin/stores/:id', [
 ], async (req, res) => {
     const errors = validationResult(req);
 
-    if (!errors.isEmpty()) return res.status(400).json(new Response(false, null, errors.array()));
+    if (!errors.isEmpty()) return res.json(new Response(false, null, errors.array()));
     
     try {
         const updated = await Store.updateOne({ _id: req.params.id, active: true, enabled: true }, { enabled: false })
             .catch(err => { throw err; });
 
-        if (!updated.nModified) return res.status(400).json(new Response(false, null, { message: msg.adminStoresAlreadyDisabled }));
+        if (!updated.nModified) return res.json(new Response(false, null, { message: msg.adminStoresAlreadyDisabled }));
 
         await onDisabled(req.params.id)
             .catch(err => { throw err; });
@@ -73,7 +87,7 @@ app.delete('/admin/stores/:id', [
 
         return res.json(new Response(true, store, null));
     } catch (err) {
-        return res.status(400).json(new Response(false, null, new Err(err)));
+        return res.json(new Response(false, null, new Err(err)));
     }
 });
 

@@ -44,6 +44,7 @@ module.exports = {
     ordersEmpty: 'Se esperaba al menos 1 producto en la orden.',
     ordersUpdateFailed: 'No se encontró la orden o falló la actualización.',
     orderAlreadyDisabled: 'No se encontró la orden o ya está desactivada.',
+    orderInvalidStatus: 'El estado de la orden provisto no es válido.',
 
     // Media
     noMediaUploaded: 'No se especificó ningún archivo para cargar.',
