@@ -8,11 +8,11 @@ const Schema = mongoose.Schema;
 
 const fillable = [
     'name', 'description', 'imageUrl', 
-    'rut', 'activity'
+    'rut', 'activity', 'bannerUrl'
 ];
 const updatable = [
     'name', 'description', 'imageUrl',
-    'activity', 'rut'
+    'activity', 'rut', 'bannerUrl'
 ];
 
 const storeSchema = new Schema({
@@ -33,6 +33,10 @@ const storeSchema = new Schema({
         ref: 'User'
     },
     imageUrl: {
+        type: String,
+        default: null
+    },
+    bannerUrl: {
         type: String,
         default: null
     },
